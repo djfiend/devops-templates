@@ -1,0 +1,84 @@
+# devops-templates — Copier templates for Josh's repositories (adoption plan D2, D7).
+#
+# One repository, several templates: `template` picks the subdirectory that is rendered,
+# and each template keeps its own answers file, so templates layer on one repo:
+#
+#   copier copy --vcs-ref vX.Y.Z -d template=contract https://github.com/djfiend/devops-templates.git .
+#   copier update --answers-file .copier-answers.contract.yml
+#
+# Releases are PEP 440 git tags (vX.Y.Z). See README.md.
+
+_min_copier_version: "9.4.0"
+_subdirectory: "{{ template }}"
+_answers_file: ".copier-answers.{{ template }}.yml"
+_envops:
+  keep_trailing_newline: true
+
+# Seeded, not managed: written only when the file does not exist yet, then owned by the
+# repo. `wt doctor` keeps them honest (contract C1.2, C1.3, C3.1, C8.3).
+_skip_if_exists:
+  - AGENTS.md
+  - CLAUDE.md
+  - .gitignore
+
+_message_after_copy: |
+  Contract layer rendered into {{ _copier_conf.dst_path }}.
+  Next: review `git status` / `git diff`, fill in the AGENTS.md placeholders if it was
+  seeded, commit `{{ _copier_conf.answers_file }}` with the rendered files, then run
+  `wt doctor` (expect 0 failed).
+
+template:
+  type: str
+  help: Which template to apply
+  choices:
+    multi-agent contract layer (AGENTS.md, .wtconfig, Claude Code rules + guard hook, Gemini redirect): contract
+  default: contract
+
+repo_name:
+  type: str
+  help: Repository name (used in seeded files)
+  default: "{{ _copier_conf.dst_path | realpath | basename }}"
+  validator: "{% if not repo_name %}Required{% endif %}"
+
+repo_description:
+  type: str
+  help: One sentence — what this repository is (seeds AGENTS.md § What this repo is)
+  default: ""
+
+base:
+  type: str
+  help: The one integration (base) branch, wt.base (contract C2.1)
+  default: main
+  validator: "{% if not base or ' ' in base %}One branch name, no spaces{% endif %}"
+
+gate:
+  type: str
+  help: The one verification command, wt.gate — must exit 0 before handoff (contract C5.1)
+  default: scripts/check.sh
+  validator: "{% if not gate %}Required{% endif %}"
+
+gate_allow:
+  type: str
+  help: Claude Code allow-rule prefix for running the gate without a prompt
+  default: "{{ gate.split(' -')[0] }}"
+
+stale_days:
+  type: int
+  help: Days without a commit before wt status flags a worktree STALE (wt.staleDays)
+  default: 7
+
+main_edit_allow:
+  type: yaml
+  help: >-
+    Paths agents may edit in the MAIN checkout (wt.mainEditAllow), as a YAML list,
+    gitignore-style — e.g. ["INDEX.md", "README.md", "claude-outputs/"]. Usually none.
+  default: []
+  validator: "{% if main_edit_allow is string or main_edit_allow is mapping %}Must be a YAML list{% endif %}"
+
+extra_allow:
+  type: yaml
+  help: >-
+    Extra read-only Bash commands Claude Code may run without asking, as a YAML list of
+    command prefixes — e.g. ["devops-test"]. Becomes "Bash(<prefix>:*)" allow rules.
+  default: []
+  validator: "{% if extra_allow is string or extra_allow is mapping %}Must be a YAML list{% endif %}"
