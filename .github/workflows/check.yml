@@ -1,0 +1,56 @@
+# Runs the repo gate (scripts/check.sh, wt.gate) — the same script agents and
+# humans run locally (contract C5.2). CI adds nothing the gate doesn't check.
+# `wt` (devops-workspace) is not installed here, so the render test that runs
+# `wt doctor` is skipped in CI and runs on mmisadmin02.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: gate (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # Oldest supported and newest stable.
+        python: ["3.10", "3.14"]
+    steps:
+      # Actions are pinned to full commit SHAs (tag in the comment);
+      # Dependabot (.github/dependabot.yml) proposes updates.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.12.13"
+          enable-cache: true
+          # Tool pins (ruff, shellcheck-py, actionlint-py, copier) live in check.sh.
+          cache-dependency-glob: scripts/check.sh
+
+      - name: Run gate
+        run: scripts/check.sh
+        env:
+          PYTHON: python
+
+      - name: Gate left the tree clean
+        run: |
+          git status --porcelain
+          test -z "$(git status --porcelain)"
