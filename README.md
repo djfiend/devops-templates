@@ -120,3 +120,7 @@ tags, so every change is tested the way adopting repos receive it.
 Releases are PEP 440 git tags `vX.Y.Z` on `main` (patch: fix, no answer
 changes; minor: something new with a default; major: adopting repos must act).
 `CHANGELOG.md` lists what each release changes for adopting repos.
+
+## License
+
+[MIT](LICENSE). Files rendered into your repository by a template are yours.
