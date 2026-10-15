@@ -62,10 +62,20 @@ model: the base branch is the trunk (decided 2026-10-10, adoption plan D1).
 |---|---|---|
 | C3.1 | `.worktrees/` is git-ignored; worktrees live inside the repo (`wt new`) | MUST |
 | C3.2 | One task = one worktree = one topic branch | MUST |
-| C3.3 | A worktree belongs to the environment that created it. To continue elsewhere, commit, then add a fresh worktree there against the same branch | MUST |
+| C3.3 | A worktree belongs to the environment that created it. To continue elsewhere, commit, then add a fresh worktree there against the same branch. Sharing one `.git`: the owner first releases the old worktree from the environment that created it (`git worktree remove`, no force, no prune), because git refuses a branch already checked out elsewhere. Separate clones: push the branch and fetch it on the other side | MUST |
 | C3.4 | In an ephemeral environment (Cowork VM, container), lock the worktree at creation with a reason naming the session, and finish to merge-ready before the session ends | MUST |
 | C3.5 | `git worktree prune` is never run from an environment that did not create the worktrees. `wt status` never prunes | MUST |
 | C3.6 | No uncommitted work is left in any worktree at session end (checkpoint commits) | MUST |
+| C3.7 | A sandboxed environment that cannot delete files by default (Cowork VM) gets the harness's folder-delete permission at session start **for git's own `*.lock` files only**, or does read-only / auditor work. That permission is never cleanup approval (C6.2) and is never used to remove repo files, branches or worktrees | MUST |
+
+**Why C3.7:** git deletes its own `index.lock` / `*.lock` files as part of
+every commit, merge and checkout. Without delete permission a Cowork VM's git
+leaves them behind and the next git command fails with "File exists" (library
+audit 2026-10-14, finding 4). A stale lock is removed only after confirming no
+git process is running against that git directory — from inside a VM `ps`
+cannot see the host, so ask the owner when the directory is shared. Verified
+live 2026-10-15: a Cowork session with the grant ran adoption phases 4–5
+(commits and worktrees in three repos) with no stale locks.
 
 ## C4 — Commits and handoff
 
@@ -142,7 +152,7 @@ Examples: library → `python3 scripts/library-lint.py --changed`.
 | # | Requirement | Level |
 |---|---|---|
 | C10.1 | Where a tool supports it, enforce the rules on the worker: Claude Code `.claude/settings.json` deny/ask rules and a main-checkout guard hook. Both ship in the `contract` template. The hook decides from the *target* file's checkout (not the session's): main-checkout files are blocked except `wt.mainEditAllow` paths, and a worker cannot edit another worker's worktree | SHOULD |
-| C10.2 | Tools without enforcement are bound by `AGENTS.md`, the gate and review. The repo's `AGENTS.md` lists which tools are enforced and which aren't | MUST |
+| C10.2 | Tools without enforcement are bound by `AGENTS.md`, the gate and review. The repo's `AGENTS.md` lists which tools are enforced and which aren't. CI running the gate on every push and PR (C5.2) is the enforcement that applies to every tool, since harness rules and hooks bind only the tool that loads them | MUST |
 
 ---
 
