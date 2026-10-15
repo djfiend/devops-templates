@@ -1,0 +1,18 @@
+# .wtconfig — this repo's multi-agent contract settings (git-config syntax, tracked).
+# Managed by the devops-templates `contract` template: change the answers with
+#   copier update --answers-file .copier-answers.contract.yml --vcs-ref=:current: -A --data <key>=<value>
+# rather than editing this file. Read with: git config -f .wtconfig <key>  (multi-valued: --get-all)
+# Contract: https://github.com/djfiend/devops-templates/blob/main/docs/multi-agent-ready-contract.md
+#
+# wt.base          the one integration branch (C2.1). Topic branches merge here with --no-ff.
+# wt.gate          the one verification command; must exit 0 before handoff (C5.1).
+# wt.staleDays     days without a commit before `wt status` flags a worktree STALE (C2.4).
+# wt.mainEditAllow paths the main-checkout guard lets agents edit in the MAIN checkout
+#                  (one entry per line; gitignore-style). Usually none: work happens in a worktree.
+[wt]
+	base = {{ base }}
+	gate = {{ gate }}
+	staleDays = {{ stale_days }}
+{%- for p in main_edit_allow %}
+	mainEditAllow = {{ p }}
+{%- endfor %}
