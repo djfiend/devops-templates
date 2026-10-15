@@ -3,6 +3,10 @@
 What each release changes for repositories that use the templates. Versions are
 git tags (`vX.Y.Z`, PEP 440).
 
+## Unreleased
+
+- Repository is MIT-licensed (no change to rendered files).
+
 ## v1.0.0 — 2026-10-15
 
 First release (adoption phase 5).
