@@ -6,6 +6,7 @@ git tags (`vX.Y.Z`, PEP 440).
 ## Unreleased
 
 - Repository is MIT-licensed (no change to rendered files).
+- Contract: new C3.7 (sandboxed environments: git-only folder-delete permission, never cleanup approval; library audit finding 4); C10.2 names CI as the enforcement for every tool; C3.3 spells out the release-then-add handoff (finding 2). Docs only — no change to rendered files.
 
 ## v1.0.0 — 2026-10-15
 
