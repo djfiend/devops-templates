@@ -8,7 +8,7 @@ subdirectory that is rendered, and each template keeps its own answers file
 | Template | What it renders | Status |
 |---|---|---|
 | `contract` | The **multi-agent contract layer** — what a repo needs so several agents can work in it safely ([the contract](docs/multi-agent-ready-contract.md)) | v1 |
-| python, bash, … | Project types (today's `devops-new` templates) | adoption phase 6 |
+| `project` | A **new project** of one of six types — python, bash, generic, ansible, docker, terraform — with a real gate and CI. Layer `contract` on top | v1.1 |
 
 ## Prerequisites
 
@@ -109,13 +109,83 @@ copier update --answers-file .copier-answers.contract.yml --vcs-ref=:current: -d
 
 `--vcs-ref=:current:` keeps the template version; only the answer changes.
 
+## The `project` template
+
+A new repository's starting point. Apply `project` first, then `contract` on
+top: the project seeds the type-specific `AGENTS.md` and `.gitignore`, and the
+contract adds `.wtconfig`, `.claude/`, `.gemini/` and `CLAUDE.md`. Each keeps
+its own answers file. `devops-new` (devops-workspace v5) runs both, then
+initialises git; by hand, from an empty directory:
+
+```bash
+copier copy --vcs-ref vX.Y.Z -d template=project -d project_type=python https://github.com/djfiend/devops-templates.git my-tool
+```
+
+```bash
+copier copy --vcs-ref vX.Y.Z -d template=contract https://github.com/djfiend/devops-templates.git my-tool
+```
+
+### Questions
+
+| Question | Default | Becomes |
+|---|---|---|
+| `project_type` | `generic` | which files render (table below) |
+| `repo_name` | the directory name; must be kebab-case | README, AGENTS, package / image / tfvars names |
+| `repo_description` | empty (TODO) | README, AGENTS § What this repo is, `pyproject.toml` |
+| `python_min` (python, docker) | `3.10` | `requires-python`, ruff `target-version`, CI matrix floor |
+| `base`, `stale_days` | `main`, `7` | CI branch filter; AGENTS § Multi-agent operation |
+
+### What each type renders
+
+Every type gets `README.md`, `CHANGELOG.md`, `AGENTS.md`, `.gitignore`,
+`.editorconfig`, `.github/copilot-instructions.md`, `.clinerules`,
+`.github/dependabot.yml`, `.github/workflows/check.yml` and `scripts/check.sh`.
+
+| Type | Files | Gate steps (plus shellcheck and actionlint) |
+|---|---|---|
+| python | `pyproject.toml` (hatchling, dev dependency group), `src/<package>/` with a console script, `tests/test_smoke.py`, `ruff.toml`, `.vscode/settings.json` | `uv lock --check`, ruff check + format, pytest, `uv build` |
+| bash | `scripts/main.sh`, `scripts/lib.sh`, `tests/main.bats` | shfmt, bats |
+| generic | — | — |
+| ansible | `ansible.cfg`, `requirements.yml`, `inventory/hosts.yml`, `inventory/group_vars/all.yml`, `playbooks/site.yml`, `roles/`, `.ansible-lint`, `.yamllint` | yamllint, ansible-lint (production profile), `--syntax-check` |
+| docker | `Dockerfile` (digest-pinned base, non-root), `compose.yaml`, `.dockerignore`, `.env.example`, `src/main.py`, `requirements.txt`, `ruff.toml` | hadolint, `docker compose config`, ruff check + format |
+| terraform | `versions.tf`, `main.tf`, `variables.tf`, `outputs.tf`, `environments/<env>/terraform.tfvars.example`, `.tflint.hcl` | `terraform fmt`, `init -backend=false` + `validate`, tflint |
+
+The gate pins every tool. PyPI-packaged tools run through `uvx`; bats, docker,
+terraform and tflint must be on `PATH`, and a missing one is reported as
+**SKIP** with an install hint. `scripts/check.sh --strict` (what CI runs, with
+those tools installed) turns a skip into a failure. A python scaffold needs a
+committed `uv.lock` (`uv lock`) before its gate passes.
+
+### Seeded and managed
+
+Seeded (yours after the first copy; `copier update` never touches them):
+`README.md`, `CHANGELOG.md`, `AGENTS.md`, `.gitignore`, `scripts/`,
+`.github/workflows/`, and the example code and content (`src/`, `tests/`,
+playbooks and inventory, `*.tf`, `environments/`, `Dockerfile`, `compose.yaml`,
+`.env.example`, `requirements.*`). Managed (an update applies template changes
+as a three-way merge): the tool configuration — `.editorconfig`, `ruff.toml`,
+`pyproject.toml`, `.yamllint`, `.ansible-lint`, `ansible.cfg`, `.tflint.hcl`,
+`.dockerignore`, `.vscode/settings.json`, Dependabot and the agent redirects.
+
+Update both layers with `devops-update`, or one at a time:
+
+```bash
+copier update --answers-file .copier-answers.project.yml
+```
+
+```bash
+copier update --answers-file .copier-answers.contract.yml
+```
+
 ## Working on the templates
 
 This repository follows its own contract (`AGENTS.md`); its root `.claude/`,
 `.gemini/` and `.wtconfig` are an application of `contract/`. The gate is
-`scripts/check.sh` (CI runs it on Python 3.10 and 3.14). It renders the
-template into throwaway repos and runs a `copier update` round trip between two
-tags, so every change is tested the way adopting repos receive it.
+`scripts/check.sh` (CI runs it with `--strict` on Python 3.10 and 3.14). It
+renders every template into throwaway repos, runs `copier update` round trips
+between two tags, and scaffolds every project type to run that scaffold's own
+gate (`scripts/scaffold-gates.sh`), so every change is tested the way adopting
+repos receive it. Shared Jinja partials live in `includes/`.
 
 Releases are PEP 440 git tags `vX.Y.Z` on `main` (patch: fix, no answer
 changes; minor: something new with a default; major: adopting repos must act).
