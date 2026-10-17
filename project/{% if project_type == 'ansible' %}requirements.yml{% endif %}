@@ -1,0 +1,9 @@
+---
+# Collections and roles this project needs, pinned:
+#   ansible-galaxy collection install -r requirements.yml
+# Example:
+# collections:
+#   - name: ansible.posix
+#     version: ">=2.0.0,<3.0.0"
+collections: []
+roles: []

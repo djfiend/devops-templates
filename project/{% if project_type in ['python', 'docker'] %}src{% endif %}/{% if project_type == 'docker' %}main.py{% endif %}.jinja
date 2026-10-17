@@ -1,0 +1,12 @@
+"""Entry point for the {{ repo_name }} container."""
+
+import os
+
+
+def main() -> None:
+    env = os.environ.get("APP_ENV", "development")
+    print(f"{{ repo_name }} running ({env})")
+
+
+if __name__ == "__main__":
+    main()

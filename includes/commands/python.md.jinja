@@ -1,0 +1,5 @@
+- **Set up:** `uv sync` — creates `.venv/` from `pyproject.toml` and `uv.lock`. Commit `uv.lock`; run `uv lock` after changing dependencies.
+- **Test:** `uv run pytest`
+- **Lint / format:** `scripts/check.sh` runs the pinned `ruff check` and `ruff format --check`; `uvx ruff@<pinned version> format .` fixes formatting.
+- **Run:** `uv run {{ repo_name }}`
+- **Build:** `uv build`

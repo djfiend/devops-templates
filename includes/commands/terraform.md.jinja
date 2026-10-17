@@ -1,0 +1,5 @@
+- **Init:** `terraform init`
+- **Format:** `terraform fmt -recursive`
+- **Validate:** `terraform validate` (after `terraform init -backend=false`)
+- **Plan:** `terraform plan -var-file=environments/dev/terraform.tfvars`
+- **Apply:** `terraform apply -var-file=environments/dev/terraform.tfvars` — changes infrastructure: ask first, and share the plan.

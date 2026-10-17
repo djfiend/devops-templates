@@ -8,7 +8,8 @@ Guidance for coding agents (Claude Code, Codex, Gemini CLI, Copilot, Cline, etc.
 
 - `contract/` — the **multi-agent contract layer**: `.wtconfig`, `.claude/settings.json` + the main-checkout guard hook and its tests, `.gemini/settings.json` (managed: `copier update` changes them), and seeds for `AGENTS.md`, `CLAUDE.md`, `.gitignore` (written only when absent).
 - `docs/multi-agent-ready-contract.md` — the standard the layer implements (C1–C10).
-- Project-type templates (python, bash, …) arrive in adoption phase 6.
+- `project/` — **new projects** of six types (`project_type`: python, bash, generic, ansible, docker, terraform): shared files (README, seeded `AGENTS.md`, `.gitignore`, `.editorconfig`, a seeded `scripts/check.sh` gate and SHA-pinned CI workflow, Dependabot) plus each type's files through conditional path names. Layered under `contract` (project first); `devops-new` (devops-workspace v5) does both.
+- `includes/` — Jinja partials shared by templates (the seeded `AGENTS.md` body and each type's commands/conventions). Outside every `_subdirectory`, so never rendered as files.
 
 Releases are PEP 440 tags `vX.Y.Z`; adopting repos pin one with `--vcs-ref` and move with `copier update`.
 
@@ -16,11 +17,11 @@ Releases are PEP 440 tags `vX.Y.Z`; adopting repos pin one with `--vcs-ref` and 
 
 **Gate (contract C5):** `scripts/check.sh` — the one command that must exit 0 before handoff, declared as `wt.gate` in [`.wtconfig`](.wtconfig).
 
-The gate runs, in order: ruff check + format, shellcheck, actionlint, compile, the guard-hook unit tests (`contract/.claude/hooks/tests`), and the render tests (`tests/test_contract_template.py`: renders the template into throwaway repos with Copier, checks every file, runs the rendered hook tests, `wt doctor` when `wt` is installed, and a `copier update` round trip between two tags). Tool versions (ruff, shellcheck, actionlint, Copier) are pinned in `scripts/check.sh` and run through `uvx`. CI (`.github/workflows/check.yml`) runs the same script on Python 3.10 and 3.14.
+The gate runs, in order: ruff check + format, shellcheck, actionlint, compile, the guard-hook unit tests (`contract/.claude/hooks/tests`), the render tests (`tests/`: renders `contract` and every `project` type into throwaway repos with Copier, checks file sets and that nothing is left unrendered, parses YAML/TOML/JSON, renders project + contract layered, runs the rendered hook tests, `wt doctor` when `wt` is installed, and `copier update` round trips between two tags), and the scaffold gates (`scripts/scaffold-gates.sh`: scaffolds every type and runs the scaffold's own `scripts/check.sh`). Tool versions are pinned in `scripts/check.sh` (the scaffolds' in `project/scripts/check.sh.jinja`) and run through `uvx`. A scaffold check whose binary is missing locally (bats, docker, terraform, tflint) is a SKIP; `scripts/check.sh --strict` makes it a failure. CI (`.github/workflows/check.yml`) installs those tools and runs `--strict` on Python 3.10 and 3.14.
 
-Try the template on a scratch repo: `copier copy --vcs-ref HEAD -d template=contract . /tmp/scratch-repo` (from this checkout).
+Try a template on a scratch repo (from this checkout): `copier copy --vcs-ref HEAD -d template=contract . /tmp/scratch-repo`, or `scripts/scaffold-gates.sh --keep python` for a full layered scaffold.
 
-**Editing a template:** files under `contract/` are what adopting repos receive — this repo's own root copies (`.claude/`, `.gemini/`, `.wtconfig`, …) are an *application* of that template, updated with `copier update` like any other repo, never edited by hand.
+**Editing a template:** files under `contract/` and `project/` (and the partials in `includes/`) are what adopting repos receive — this repo's own root copies (`.claude/`, `.gemini/`, `.wtconfig`, …) are an *application* of that template, updated with `copier update` like any other repo, never edited by hand.
 
 **Contract check:** `wt doctor` checks this repo against the multi-agent ready contract (exit 1 if a MUST fails).
 

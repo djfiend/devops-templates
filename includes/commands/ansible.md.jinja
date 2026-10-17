@@ -1,0 +1,5 @@
+- **Collections:** `ansible-galaxy collection install -r requirements.yml`
+- **Syntax check:** `ansible-playbook playbooks/site.yml --syntax-check`
+- **Dry run:** `ansible-playbook playbooks/site.yml --check --diff`
+- **Apply:** `ansible-playbook playbooks/site.yml` — touches hosts: ask first.
+- **Lint:** `scripts/check.sh` runs `ansible-lint`, the syntax check and `yamllint`.

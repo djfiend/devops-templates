@@ -1,0 +1,21 @@
+"""Command-line entry point: ``{{ repo_name }}`` or ``python -m {{ package_name }}``."""
+
+from __future__ import annotations
+
+import argparse
+
+from {{ package_name }} import __version__
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="{{ repo_name }}", description=__doc__)
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
+    parser.parse_args(argv)
+    print("{{ repo_name }}: TODO — replace with the real command")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

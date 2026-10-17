@@ -3,8 +3,39 @@
 What each release changes for repositories that use the templates. Versions are
 git tags (`vX.Y.Z`, PEP 440).
 
-## Unreleased
+## v1.1.0 — 2026-10-17
 
+New `project` template (adoption phase 6). The `contract` template's rendered files
+are unchanged: `copier update` on an existing adopter changes only `_commit`.
+
+- **`project` template** with a `project_type` choice — python, bash, generic,
+  ansible, docker, terraform — carried over from devops-workspace's in-code
+  templates and brought up to standard. Apply it first, then `contract` on top.
+  - Every type: README, CHANGELOG, `.editorconfig`, `.gitignore` (type rules +
+    the contract's agent ignores), a seeded `AGENTS.md` with every C1.2 section and
+    the type's commands, `.github/copilot-instructions.md` and `.clinerules`
+    redirects, Dependabot, and a real gate: `scripts/check.sh` (pinned tools via
+    uvx; a missing binary is a SKIP, `--strict` fails it) run by a SHA-pinned CI
+    workflow with `--strict`.
+  - python: hatchling `src/<package>/` layout with a console script, uv dependency
+    groups + `uv.lock`, ruff, pytest, build check. bash: shellcheck, shfmt, bats.
+    ansible: production-profile ansible-lint, yamllint, syntax check; `group_vars`
+    moved under `inventory/` (where Ansible loads it). docker: digest-pinned base,
+    numeric non-root user, `compose.yaml`, hadolint. terraform: `versions.tf`,
+    tflint, `.terraform.lock.hcl` committed, only `*.tfvars.example` tracked.
+  - Questions: `project_type`, `python_min` (python, docker); `repo_name` (now
+    kebab-case-validated for projects) and `repo_description` are shared with
+    `contract`. The contract-only questions are no longer asked for `project`.
+  - Seeded vs managed: the docs, gate, CI and example code are seeded (`copier
+    update` never touches them); tool config (`.editorconfig`, `ruff.toml`,
+    `.yamllint`, `.tflint.hcl`, `pyproject.toml`, …) is managed.
+- `includes/`: the seeded `AGENTS.md` body is one shared partial for both
+  templates (the contract render is byte-identical to v1.0.0).
+- `_skip_if_exists` entries are rendered per template, so the project template's
+  seeded paths never apply to `contract`.
+- Gate: render tests for every type, layered project + contract, update round
+  trips; new step 9 `scripts/scaffold-gates.sh` runs each scaffold's own gate.
+  CI installs bats, terraform and tflint and runs the gate with `--strict`.
 - Repository is MIT-licensed (no change to rendered files).
 - Contract: new C3.7 (sandboxed environments: git-only folder-delete permission, never cleanup approval; library audit finding 4); C10.2 names CI as the enforcement for every tool; C3.3 spells out the release-then-add handoff (finding 2). Docs only — no change to rendered files.
 

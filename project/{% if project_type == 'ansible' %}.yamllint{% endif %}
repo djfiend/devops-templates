@@ -1,0 +1,24 @@
+---
+# yamllint rules, compatible with ansible-lint's own requirements.
+extends: default
+
+ignore: |
+  .copier-answers.*.yml
+  .ansible/
+  .venv/
+  .worktrees/
+
+rules:
+  braces:
+    max-spaces-inside: 1
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: false
+  line-length:
+    max: 160
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
+  truthy:
+    allowed-values: ["true", "false"]
+    check-keys: false # GitHub Actions' `on:` key

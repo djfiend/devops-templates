@@ -1,0 +1,23 @@
+# https://editorconfig.org — editors, and shfmt (scripts/check.sh runs it without
+# formatting flags, so the [*.{sh,bats}] settings below are its style).
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{yml,yaml,json,tf,tfvars,hcl}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{sh,bats}]
+switch_case_indent = true
+
+[Makefile]
+indent_style = tab

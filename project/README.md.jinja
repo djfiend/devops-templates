@@ -1,0 +1,91 @@
+# {{ repo_name }}
+
+{{ repo_description or "TODO: one paragraph — what this project is, why it exists and who uses it." }}
+
+## Requirements
+
+{% if project_type == 'python' -%}
+- Python {{ python_min }} or later
+- [uv](https://docs.astral.sh/uv/)
+{%- elif project_type == 'bash' -%}
+- bash 4.4 or later
+- For the gate: [uv](https://docs.astral.sh/uv/) (runs shellcheck and shfmt) and [bats-core](https://github.com/bats-core/bats-core)
+{%- elif project_type == 'ansible' -%}
+- [uv](https://docs.astral.sh/uv/) (the gate runs ansible-lint, ansible-core and yamllint through it)
+- Ansible on the control node to apply playbooks, e.g. `uv tool install ansible-core`
+{%- elif project_type == 'docker' -%}
+- Docker Engine with the Compose plugin (`docker compose`)
+- For the gate: [uv](https://docs.astral.sh/uv/) (runs hadolint and ruff)
+{%- elif project_type == 'terraform' -%}
+- Terraform 1.6 or later
+- For the gate: [TFLint](https://github.com/terraform-linters/tflint) and [uv](https://docs.astral.sh/uv/)
+{%- else -%}
+- For the gate: [uv](https://docs.astral.sh/uv/) (runs shellcheck and actionlint)
+- TODO: what else this project needs
+{%- endif %}
+
+## Usage
+
+{% if project_type == 'python' -%}
+```bash
+uv sync
+```
+
+```bash
+uv run {{ repo_name }} --help
+```
+{%- elif project_type == 'bash' -%}
+```bash
+scripts/main.sh
+```
+{%- elif project_type == 'ansible' -%}
+Add hosts to `inventory/hosts.yml`, then:
+
+```bash
+ansible-galaxy collection install -r requirements.yml
+```
+
+```bash
+ansible-playbook playbooks/site.yml --check --diff
+```
+
+```bash
+ansible-playbook playbooks/site.yml
+```
+
+Secrets go in a vault file, e.g. `ansible-vault create inventory/group_vars/all/vault.yml`
+(turn `all.yml` into `all/vars.yml` first).
+{%- elif project_type == 'docker' -%}
+```bash
+cp .env.example .env
+```
+
+```bash
+docker compose up --build
+```
+{%- elif project_type == 'terraform' -%}
+```bash
+cp environments/dev/terraform.tfvars.example environments/dev/terraform.tfvars
+```
+
+```bash
+terraform init
+```
+
+```bash
+terraform plan -var-file=environments/dev/terraform.tfvars
+```
+{%- else -%}
+TODO: how to run it.
+{%- endif %}
+
+## Development
+
+The gate is `scripts/check.sh`: run it before every handoff or merge. CI runs
+`scripts/check.sh --strict`, where a check whose tool is missing fails instead of
+being skipped. Instructions for coding agents are in [AGENTS.md](AGENTS.md).
+
+Scaffolded from [devops-templates](https://github.com/djfiend/devops-templates)
+(`project` and `contract` templates). To take a newer template release, run
+`devops-update` with a clean tree, or `copier update --answers-file <file>` for each
+`.copier-answers.*.yml`.

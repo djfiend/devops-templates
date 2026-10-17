@@ -1,0 +1,10 @@
+# Lint and format settings. The ruff version is pinned in scripts/check.sh (RUFF_VERSION).
+target-version = "py{{ python_min | replace('.', '') }}" # oldest supported Python
+line-length = 88
+
+[lint]
+# E/W pycodestyle, F pyflakes, I isort, UP pyupgrade, B bugbear, SIM simplify.
+# An explicit list, so new ruff defaults never change the gate without a commit.
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+# Line length is the formatter's job; E501 would only flag long strings it can't split.
+ignore = ["E501"]

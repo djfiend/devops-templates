@@ -1,0 +1,253 @@
+#!/usr/bin/env bash
+# scripts/check.sh — {{ repo_name }}'s one verification gate (wt.gate in .wtconfig; contract C5).
+#
+# Must exit 0 before any handoff or merge. CI (.github/workflows/check.yml) runs this same
+# script with --strict, so a local pass and a CI pass mean the same thing (C5.2).
+# Seeded by the devops-templates `project` template ({{ project_type }}). It belongs to this
+# repo now: add a step for every check the project needs.
+#
+# Steps (all run; the summary lists every failure and skip):
+{%- set n = namespace(i=0) %}
+{%- if project_type == 'python' %}
+#   {% set n.i = n.i + 1 %}{{ n.i }}. uv.lock current     uv lock --check (commit uv.lock)
+#   {% set n.i = n.i + 1 %}{{ n.i }}. ruff check          lint (rules in ruff.toml)
+#   {% set n.i = n.i + 1 %}{{ n.i }}. ruff format         ruff format --check
+#   {% set n.i = n.i + 1 %}{{ n.i }}. pytest              uv run --locked pytest (dev dependency group)
+#   {% set n.i = n.i + 1 %}{{ n.i }}. build               uv build (sdist + wheel) into a temp dir
+{%- elif project_type == 'bash' %}
+#   {% set n.i = n.i + 1 %}{{ n.i }}. shfmt               shfmt -d on *.sh and *.bats (style from .editorconfig)
+#   {% set n.i = n.i + 1 %}{{ n.i }}. bats                bats tests/
+{%- elif project_type == 'ansible' %}
+#   {% set n.i = n.i + 1 %}{{ n.i }}. yamllint            yamllint --strict . (rules in .yamllint)
+#   {% set n.i = n.i + 1 %}{{ n.i }}. ansible-lint        production profile (.ansible-lint)
+#   {% set n.i = n.i + 1 %}{{ n.i }}. syntax check        ansible-playbook playbooks/site.yml --syntax-check
+{%- elif project_type == 'docker' %}
+#   {% set n.i = n.i + 1 %}{{ n.i }}. hadolint            Dockerfile
+#   {% set n.i = n.i + 1 %}{{ n.i }}. compose config      docker compose config -q
+#   {% set n.i = n.i + 1 %}{{ n.i }}. ruff check          lint src/ (rules in ruff.toml)
+#   {% set n.i = n.i + 1 %}{{ n.i }}. ruff format         ruff format --check src/
+{%- elif project_type == 'terraform' %}
+#   {% set n.i = n.i + 1 %}{{ n.i }}. terraform fmt       terraform fmt -check -recursive
+#   {% set n.i = n.i + 1 %}{{ n.i }}. terraform validate  terraform init -backend=false, then terraform validate
+#   {% set n.i = n.i + 1 %}{{ n.i }}. tflint              tflint --recursive (rules in .tflint.hcl)
+{%- endif %}
+#   {% set n.i = n.i + 1 %}{{ n.i }}. shellcheck          every *.sh{% if project_type == 'bash' %} and *.bats{% endif %} (scripts/ and tests/ included)
+#   {% set n.i = n.i + 1 %}{{ n.i }}. actionlint          .github/workflows/
+#
+# Tools are pinned below. PyPI-packaged tools run through uvx: the first run downloads them
+# into the uv cache, after that no network is needed.
+{%- if project_type in ['bash', 'docker', 'terraform'] %}
+# {{ {'bash': 'bats', 'docker': 'docker', 'terraform': 'terraform and tflint'}[project_type] }} must be on PATH: when missing, the step
+# reports SKIP with an install hint. CI installs {{ 'it' if project_type in ['bash', 'docker'] else 'them' }} (check.yml).
+{%- endif %}
+#
+# Usage: scripts/check.sh            run the gate (a missing tool is a SKIP, not a pass)
+#        scripts/check.sh --strict   a SKIP fails the gate (CI uses this)
+# Requirements: bash, uv.
+
+set -euo pipefail
+
+# Tool pins: PyPI packages, run through uvx (the -py wheels wrap the upstream binary).
+SHELLCHECK_PY_VERSION="0.11.0.1"
+ACTIONLINT_PY_VERSION="1.7.12.25"
+{%- if project_type in ['python', 'docker'] %}
+RUFF_VERSION="0.17.0"
+{%- endif %}
+{%- if project_type == 'bash' %}
+# shfmt-py 4.2.0 ships shfmt 3.14.1.
+SHFMT_PY_VERSION="4.2.0"
+{%- endif %}
+{%- if project_type == 'ansible' %}
+ANSIBLE_LINT_VERSION="26.10.1"
+ANSIBLE_CORE_VERSION="2.21.5"
+YAMLLINT_VERSION="1.38.0"
+# ansible-core 2.21 needs Python >= 3.12; uv fetches this one if it is missing.
+ANSIBLE_PYTHON="3.13"
+{%- endif %}
+{%- if project_type == 'docker' %}
+HADOLINT_PY_VERSION="2.15.1.2"
+{%- endif %}
+
+# Exit status a step returns when its tool is missing.
+SKIP=77
+
+STRICT=0
+case "${1:-}" in
+    --strict) STRICT=1 ;;
+    "") ;;
+    *)
+        echo "usage: scripts/check.sh [--strict]" >&2
+        exit 2
+        ;;
+esac
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+if [[ -t 1 ]]; then
+    BOLD=$'\e[1m' GREEN=$'\e[32m' YELLOW=$'\e[33m' RED=$'\e[31m' RESET=$'\e[0m'
+else
+    BOLD="" GREEN="" YELLOW="" RED="" RESET=""
+fi
+
+failed=()
+skipped=()
+passed=0
+
+step() { # step <name> <command...>: run one gate step, record pass/skip/fail, never abort
+    local name="$1" rc=0
+    shift
+    printf '\n%s==> %s%s\n' "$BOLD" "$name" "$RESET"
+    "$@" || rc=$?
+    if ((rc == 0)); then
+        printf '%sPASS%s  %s\n' "$GREEN" "$RESET" "$name"
+        passed=$((passed + 1))
+    elif ((rc == SKIP && ! STRICT)); then
+        printf '%sSKIP%s  %s\n' "$YELLOW" "$RESET" "$name"
+        skipped+=("$name")
+    else
+        ((rc == SKIP)) && printf '  (--strict: a skipped step fails)\n'
+        printf '%sFAIL%s  %s\n' "$RED" "$RESET" "$name"
+        failed+=("$name")
+    fi
+}
+
+need() { # need <command> <install hint>: return SKIP if <command> is not on PATH
+    command -v "$1" >/dev/null 2>&1 && return 0
+    printf '  %s not found on PATH — %s\n' "$1" "$2"
+    return "$SKIP"
+}
+
+shell_files() { # every shell file in the repo, outside VCS, tool and dependency dirs
+    find . \( -name .git -o -name .worktrees -o -name .venv -o -name .terraform -o -name .ansible -o -name node_modules \) -prune \
+        -o -type f \( -name '*.sh'{% if project_type == 'bash' %} -o -name '*.bats'{% endif %} \) -print | sort
+}
+
+shellcheck() { uvx --quiet --from "shellcheck-py==${SHELLCHECK_PY_VERSION}" shellcheck "$@"; }
+actionlint() { uvx --quiet --from "actionlint-py==${ACTIONLINT_PY_VERSION}" actionlint "$@"; }
+{%- if project_type in ['python', 'docker'] %}
+ruff() { uvx --quiet "ruff@${RUFF_VERSION}" "$@"; }
+{%- endif %}
+{%- if project_type == 'bash' %}
+shfmt() { uvx --quiet --from "shfmt-py==${SHFMT_PY_VERSION}" shfmt "$@"; }
+{%- endif %}
+{%- if project_type == 'ansible' %}
+yamllint() { uvx --quiet --from "yamllint==${YAMLLINT_VERSION}" yamllint "$@"; }
+ansible_lint() {
+    uvx --quiet --python "$ANSIBLE_PYTHON" --from "ansible-lint==${ANSIBLE_LINT_VERSION}" \
+        --with "ansible-core==${ANSIBLE_CORE_VERSION}" ansible-lint "$@"
+}
+ansible_playbook() {
+    uvx --quiet --python "$ANSIBLE_PYTHON" --from "ansible-core==${ANSIBLE_CORE_VERSION}" ansible-playbook "$@"
+}
+{%- endif %}
+{%- if project_type == 'docker' %}
+hadolint() { uvx --quiet --from "hadolint-py==${HADOLINT_PY_VERSION}" hadolint "$@"; }
+{%- endif %}
+
+run_shellcheck() {
+    local files
+    mapfile -t files < <(shell_files)
+    if (({% raw %}${#{% endraw %}files[@]} == 0)); then
+        echo "  no shell files"
+        return 0
+    fi
+    shellcheck -x "${files[@]}"
+}
+{%- if project_type == 'python' %}
+
+build() {
+    local out rc=0
+    out="$(mktemp -d)"
+    uv build --quiet --out-dir "$out" || rc=$?
+    ((rc == 0)) && find "$out" -maxdepth 1 -type f \( -name '*.whl' -o -name '*.tar.gz' \) -printf '  built %f\n'
+    rm -rf "$out"
+    return "$rc"
+}
+{%- endif %}
+{%- if project_type == 'bash' %}
+
+run_shfmt() {
+    local files
+    mapfile -t files < <(shell_files)
+    (({% raw %}${#{% endraw %}files[@]} == 0)) || shfmt -d "${files[@]}"
+}
+
+run_bats() {
+    need bats "install bats-core: https://bats-core.readthedocs.io/en/stable/installation.html" || return
+    bats tests/
+}
+{%- endif %}
+{%- if project_type == 'docker' %}
+
+compose_config() {
+    need docker "install Docker Engine with the Compose plugin: https://docs.docker.com/engine/install/" || return
+    docker compose version >/dev/null 2>&1 || {
+        echo "  docker compose plugin not available — https://docs.docker.com/compose/install/linux/"
+        return "$SKIP"
+    }
+    docker compose config -q
+}
+{%- endif %}
+{%- if project_type == 'terraform' %}
+
+terraform_fmt() {
+    need terraform "install Terraform: https://developer.hashicorp.com/terraform/install" || return
+    terraform fmt -check -recursive -diff
+}
+
+terraform_validate() {
+    need terraform "install Terraform: https://developer.hashicorp.com/terraform/install" || return
+    terraform init -backend=false -input=false >/dev/null && terraform validate
+}
+
+run_tflint() {
+    need tflint "install TFLint: https://github.com/terraform-linters/tflint#installation" || return
+    tflint --init >/dev/null && tflint --recursive
+}
+{%- endif %}
+
+command -v uv >/dev/null 2>&1 || {
+    printf '%scheck.sh: uv not found on PATH — https://docs.astral.sh/uv/getting-started/installation/%s\n' "$RED" "$RESET" >&2
+    exit 2
+}
+
+printf '%scheck.sh%s — %s @ %s%s\n' "$BOLD" "$RESET" "$(basename "$REPO_ROOT")" \
+    "$(git rev-parse --short HEAD 2>/dev/null || echo '?')" "$( ((STRICT)) && echo ' (strict)')"
+{% if project_type == 'python' %}
+step "uv.lock current" uv lock --check
+step "ruff check" ruff check --no-cache .
+step "ruff format" ruff format --no-cache --check .
+step "pytest" uv run --locked --quiet pytest
+step "build" build
+{%- elif project_type == 'bash' %}
+step "shfmt" run_shfmt
+step "bats" run_bats
+{%- elif project_type == 'ansible' %}
+step "yamllint" yamllint --strict .
+step "ansible-lint" ansible_lint
+step "syntax check" ansible_playbook playbooks/site.yml --syntax-check
+{%- elif project_type == 'docker' %}
+step "hadolint" hadolint Dockerfile
+step "compose config" compose_config
+step "ruff check" ruff check --no-cache src
+step "ruff format" ruff format --no-cache --check src
+{%- elif project_type == 'terraform' %}
+step "terraform fmt" terraform_fmt
+step "terraform validate" terraform_validate
+step "tflint" run_tflint
+{%- endif %}
+step "shellcheck" run_shellcheck
+step "actionlint" actionlint
+
+total=$((passed + {% raw %}${#{% endraw %}skipped[@]} + {% raw %}${#{% endraw %}failed[@]}))
+if (({% raw %}${#{% endraw %}failed[@]})); then
+    printf '\n%sGATE FAILED%s — %d of %d steps failed: %s\n' "$RED$BOLD" "$RESET" "{% raw %}${#{% endraw %}failed[@]}" "$total" "${failed[*]}"
+    exit 1
+fi
+if (({% raw %}${#{% endraw %}skipped[@]})); then
+    printf '\n%sGATE PASSED%s — %d/%d steps, %d skipped: %s (--strict fails on a skip)\n' \
+        "$GREEN$BOLD" "$RESET" "$passed" "$total" "{% raw %}${#{% endraw %}skipped[@]}" "${skipped[*]}"
+    exit 0
+fi
+printf '\n%sGATE PASSED%s — %d/%d steps\n' "$GREEN$BOLD" "$RESET" "$passed" "$total"

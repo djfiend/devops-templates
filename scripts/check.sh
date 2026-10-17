@@ -12,15 +12,21 @@
 #   5. actionlint            .github/workflows/
 #   6. compile               every .py compiles under the running Python (no byte-code written)
 #   7. guard-hook tests      contract/.claude/hooks/tests (unittest, temp repos only)
-#   8. render tests          tests/test_contract_template.py: Copier renders into throwaway
-#                            repos, rendered hook tests, `wt doctor` if wt is installed,
-#                            copier update round trip between two tags
+#   8. render tests          tests/: Copier renders `contract` and every `project` type into
+#                            throwaway repos (file sets, nothing unrendered, valid YAML/TOML/
+#                            JSON), layered project + contract, rendered hook tests, `wt doctor`
+#                            if wt is installed, copier update round trips between two tags
+#   9. scaffold gates        scripts/scaffold-gates.sh: every project type scaffolded the way
+#                            devops-new does it, then the scaffold's OWN scripts/check.sh.
+#                            A tool it needs that is missing here (bats, docker, terraform,
+#                            tflint) is a SKIP; with --strict (CI) it is a failure
 #
 # Requirements: bash, git, python3 (>= 3.10), uv. Tools are pinned below and run through
 # uvx; the first run downloads them into the uv cache, after that no network is needed
 # (UV_OFFLINE=1 enforces that).
 #
 # Usage: scripts/check.sh                       run the gate
+#        scripts/check.sh --strict              scaffold gates fail on a skipped tool (CI)
 #        PYTHON=python3.14 scripts/check.sh     run it under a specific interpreter
 
 set -euo pipefail
@@ -29,8 +35,19 @@ RUFF_VERSION="0.17.0"             # same pin as linux-devops-workspace
 SHELLCHECK_PY_VERSION="0.11.0.1"  # PyPI wheel of ShellCheck 0.11.0
 ACTIONLINT_PY_VERSION="1.7.12.25" # PyPI wheel of actionlint 1.7.12
 COPIER_VERSION="9.19.1"           # keep >= _min_copier_version in copier.yml
+YAMLLINT_VERSION="1.38.0"         # render tests: rendered YAML parses
 
 PYTHON="${PYTHON:-python3}"
+STRICT=()
+case "${1:-}" in
+    --strict) STRICT=(--strict) ;;
+    "") ;;
+    *)
+        echo "usage: scripts/check.sh [--strict]" >&2
+        exit 2
+        ;;
+esac
+COPIER_CMD="uvx --quiet --python $PYTHON --from copier==${COPIER_VERSION} copier"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
@@ -100,12 +117,24 @@ render_tests() {
     # Verbose run so the gate shows each test; full output only when something fails.
     local out rc=0
     out="$(PYTHONDONTWRITEBYTECODE=1 \
-        COPIER="uvx --quiet --python $PYTHON --from copier==${COPIER_VERSION} copier" \
+        COPIER="$COPIER_CMD" \
+        YAMLLINT="uvx --quiet --from yamllint==${YAMLLINT_VERSION} yamllint" \
         "$PYTHON" -m unittest discover -s tests -v 2>&1)" || rc=$?
     if ((rc)); then
         printf '%s\n' "$out"
     else
         grep -E " \.\.\. |^Ran " <<<"$out" | sed 's/^/  /'
+    fi
+    return $rc
+}
+
+scaffold_gates() {
+    local out rc=0
+    out="$(COPIER="$COPIER_CMD" scripts/scaffold-gates.sh "${STRICT[@]}" 2>&1)" || rc=$?
+    if ((rc)); then
+        printf '%s\n' "$out"
+    else
+        grep -E "^(=== |wt doctor:|GATE |scaffold gates)" <<<"$out" | sed 's/^/  /'
     fi
     return $rc
 }
@@ -124,6 +153,7 @@ step "actionlint"         actionlint
 step "compile"            compile_all
 step "guard-hook tests"   guard_hook_tests
 step "render tests"       render_tests
+step "scaffold gates"     scaffold_gates
 
 total=$((passed + ${#failed[@]}))
 if ((${#failed[@]})); then

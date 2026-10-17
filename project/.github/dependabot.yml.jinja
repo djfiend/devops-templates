@@ -1,0 +1,44 @@
+---
+# Keeps pinned versions current: the SHA-pinned actions in .github/workflows/
+{%- if project_type == 'python' %}, uv.lock{% elif project_type == 'docker' %}, the base image digest and requirements.txt{% elif project_type == 'terraform' %}, provider versions{% endif %}.
+# Gate tool pins (scripts/check.sh) are bumped by hand.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
+{%- if project_type == 'python' %}
+
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: build
+{%- elif project_type == 'docker' %}
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: build
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: build
+{%- elif project_type == 'terraform' %}
+
+  - package-ecosystem: terraform
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: build
+{%- endif %}

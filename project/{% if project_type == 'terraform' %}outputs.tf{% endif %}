@@ -1,0 +1,9 @@
+output "name_prefix" {
+  description = "Prefix for resource names: <project>-<environment>"
+  value       = local.name_prefix
+}
+
+output "common_tags" {
+  description = "Tags every resource should carry"
+  value       = local.common_tags
+}

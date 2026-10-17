@@ -1,0 +1,3 @@
+---
+# Variables for every host. Secrets go in an ansible-vault file: turn this file into
+# group_vars/all/vars.yml and add group_vars/all/vault.yml (ansible-vault create).

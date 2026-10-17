@@ -1,0 +1,21 @@
+#!/usr/bin/env bats
+# Tests for scripts/main.sh. Run: bats tests/
+
+bats_require_minimum_version 1.5.0
+
+setup() {
+    ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+}
+
+@test "main.sh runs and reports the project root" {
+    run "$ROOT/scripts/main.sh"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"project root is $ROOT"* ]]
+}
+
+@test "log_warn writes to stderr" {
+    run --separate-stderr bash -c "source '$ROOT/scripts/lib.sh'; log_warn careful"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    [[ "$stderr" == *"[WARN]  careful"* ]]
+}

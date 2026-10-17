@@ -1,0 +1,12 @@
+---
+services:
+  app:
+    build:
+      context: .
+    image: {{ repo_name }}:dev
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    # ports:
+    #   - "8080:8080"

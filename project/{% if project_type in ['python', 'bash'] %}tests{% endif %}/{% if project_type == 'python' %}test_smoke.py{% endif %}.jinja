@@ -1,0 +1,22 @@
+"""Smoke tests: the package imports and the command runs. Grow real tests from here."""
+
+import pytest
+
+from {{ package_name }} import __version__
+from {{ package_name }}.__main__ import main
+
+
+def test_version_is_set():
+    assert __version__
+
+
+def test_main_runs(capsys):
+    assert main([]) == 0
+    assert "{{ repo_name }}" in capsys.readouterr().out
+
+
+def test_version_flag(capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["--version"])
+    assert exc.value.code == 0
+    assert __version__ in capsys.readouterr().out

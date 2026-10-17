@@ -1,0 +1,8 @@
+---
+- name: Baseline for all hosts
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Report the managed host
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} runs {{ ansible_facts['distribution'] | default('an unknown OS') }}"
