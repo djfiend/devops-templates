@@ -1,0 +1,76 @@
+# Agent tooling (multi-agent ready contract C3.1, C8.3)
+.worktrees/
+.claude/settings.local.json
+
+# OS / editors
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+*.code-workspace
+{%- if project_type == 'python' %}
+.vscode/*
+!.vscode/settings.json
+{%- else %}
+.vscode/
+{%- endif %}
+
+# Logs and scratch
+*.log
+tmp/
+{%- if project_type in ['python', 'docker'] %}
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.ruff_cache/
+.pytest_cache/
+{%- endif %}
+{%- if project_type == 'python' %}
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+{%- endif %}
+{%- if project_type == 'docker' %}
+
+# Docker: real configuration stays local (.env.example documents it)
+.env
+*.env
+!.env.example
+{%- endif %}
+{%- if project_type == 'bash' %}
+
+# Script output
+out/
+*.tmp
+{%- endif %}
+{%- if project_type == 'ansible' %}
+
+# Ansible
+*.retry
+.vault_pass
+vault_pass.txt
+.ansible/
+{%- endif %}
+{%- if project_type == 'terraform' %}
+
+# Terraform: never commit state, working dirs or real variable values.
+# .terraform.lock.hcl IS committed (provider pins).
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+{%- endif %}

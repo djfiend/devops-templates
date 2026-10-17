@@ -1,0 +1,8 @@
+"""{{ repo_name }}{{ " — " ~ repo_description if repo_description else "" }}"""
+
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("{{ repo_name }}")
+except PackageNotFoundError:  # a source tree that was never installed
+    __version__ = "0.0.0"

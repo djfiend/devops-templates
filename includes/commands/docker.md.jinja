@@ -1,0 +1,3 @@
+- **Build and run:** `docker compose up --build` (detached: `-d`; logs: `docker compose logs -f`; stop: `docker compose down`)
+- **Config check:** `docker compose config -q`
+- **Lint:** `scripts/check.sh` runs `hadolint`, the compose config check and `ruff` on `src/`.

@@ -6,7 +6,13 @@
 #   copier copy --vcs-ref vX.Y.Z -d template=contract https://github.com/djfiend/devops-templates.git .
 #   copier update --answers-file .copier-answers.contract.yml
 #
-# Releases are PEP 440 git tags (vX.Y.Z). See README.md.
+# A new project is `project` first, then `contract` (devops-new does both):
+#
+#   copier copy --vcs-ref vX.Y.Z -d template=project -d project_type=python <url> my-project
+#   copier copy --vcs-ref vX.Y.Z -d template=contract <url> my-project
+#
+# Shared Jinja partials live in includes/ (outside every template subdirectory, so they
+# are never rendered as files themselves). Releases are PEP 440 git tags (vX.Y.Z).
 
 _min_copier_version: "9.4.0"
 _subdirectory: "{{ template }}"
@@ -15,30 +21,65 @@ _envops:
   keep_trailing_newline: true
 
 # Seeded, not managed: written only when the file does not exist yet, then owned by the
-# repo. `wt doctor` keeps them honest (contract C1.2, C1.3, C3.1, C8.3).
+# repo; `copier update` never touches it again. Everything else a template renders is
+# managed: an update applies the template's changes as a three-way merge.
+# Patterns are gitignore-style and rendered with Jinja, so the project-only entries
+# render empty (no pattern) for the contract template. `wt doctor` keeps the contract's
+# seeded files honest (C1.2, C1.3, C3.1, C8.3).
 _skip_if_exists:
+  # Both templates: the agent instructions and the ignore file.
   - AGENTS.md
   - CLAUDE.md
   - .gitignore
+  # Project template: the repo's docs, gate, CI, and every example file it starts from.
+  - "{% if template == 'project' %}/README.md{% endif %}"
+  - "{% if template == 'project' %}/CHANGELOG.md{% endif %}"
+  - "{% if template == 'project' %}/scripts/**{% endif %}"
+  - "{% if template == 'project' %}/.github/workflows/**{% endif %}"
+  - "{% if template == 'project' %}/src/**{% endif %}"
+  - "{% if template == 'project' %}/tests/**{% endif %}"
+  - "{% if template == 'project' %}/playbooks/**{% endif %}"
+  - "{% if template == 'project' %}/inventory/**{% endif %}"
+  - "{% if template == 'project' %}/roles/**{% endif %}"
+  - "{% if template == 'project' %}/requirements.yml{% endif %}"
+  - "{% if template == 'project' %}/requirements.txt{% endif %}"
+  - "{% if template == 'project' %}/Dockerfile{% endif %}"
+  - "{% if template == 'project' %}/compose.yaml{% endif %}"
+  - "{% if template == 'project' %}/.env.example{% endif %}"
+  - "{% if template == 'project' %}/*.tf{% endif %}"
+  - "{% if template == 'project' %}/environments/**{% endif %}"
 
 _message_after_copy: |
+  {%- if template == 'project' %}
+  {{ project_type }} project rendered into {{ _copier_conf.dst_path }}.
+  Next: apply the contract layer (`copier copy … -d template=contract`), fill in the
+  TODOs in AGENTS.md and README.md, then run `scripts/check.sh` and `wt doctor`.
+  {%- else %}
   Contract layer rendered into {{ _copier_conf.dst_path }}.
   Next: review `git status` / `git diff`, fill in the AGENTS.md placeholders if it was
   seeded, commit `{{ _copier_conf.answers_file }}` with the rendered files, then run
   `wt doctor` (expect 0 failed).
+  {%- endif %}
 
 template:
   type: str
   help: Which template to apply
   choices:
     multi-agent contract layer (AGENTS.md, .wtconfig, Claude Code rules + guard hook, Gemini redirect): contract
+    new project of a given type (layer `contract` on top): project
   default: contract
+
+# --- shared ------------------------------------------------------------------------------
 
 repo_name:
   type: str
-  help: Repository name (used in seeded files)
+  help: Repository name (used in seeded files; for a project also the package / image name)
   default: "{{ _copier_conf.dst_path | realpath | basename }}"
-  validator: "{% if not repo_name %}Required{% endif %}"
+  validator: >-
+    {%- if not repo_name -%}Required
+    {%- elif template == 'project' and not (repo_name | regex_search('^[a-z][a-z0-9]*(-[a-z0-9]+)*$')) -%}
+    Use kebab-case: lowercase letters and digits in words separated by single hyphens, starting with a letter (e.g. my-project)
+    {%- endif -%}
 
 repo_description:
   type: str
@@ -51,27 +92,60 @@ base:
   default: main
   validator: "{% if not base or ' ' in base %}One branch name, no spaces{% endif %}"
 
+stale_days:
+  type: int
+  help: Days without a commit before wt status flags a worktree STALE (wt.staleDays)
+  default: 7
+
+# --- project template --------------------------------------------------------------------
+
+project_type:
+  type: str
+  help: Project type
+  when: "{{ template == 'project' }}"
+  choices:
+    Python package (uv, hatchling, src layout, ruff, pytest): python
+    Bash scripts (shellcheck, shfmt, bats): bash
+    language-agnostic starter (shellcheck, actionlint): generic
+    Ansible automation (ansible-lint, yamllint): ansible
+    containerised app (Dockerfile, compose, hadolint): docker
+    Terraform (fmt, validate, tflint): terraform
+  default: generic
+
+python_min:
+  type: str
+  help: Oldest supported Python (requires-python, ruff target, CI matrix floor)
+  when: "{{ template == 'project' and project_type in ['python', 'docker'] }}"
+  default: "3.10"
+  validator: "{% if not (python_min | regex_search('^3\\.[0-9]+$')) %}A 3.x version, e.g. 3.10{% endif %}"
+
+# Computed (never asked, never stored): the importable package name.
+package_name:
+  type: str
+  when: false
+  default: "{{ repo_name | lower | regex_replace('[^a-z0-9]+', '_') }}"
+
+# --- contract template -------------------------------------------------------------------
+
 gate:
   type: str
   help: The one verification command, wt.gate — must exit 0 before handoff (contract C5.1)
+  when: "{{ template == 'contract' }}"
   default: scripts/check.sh
   validator: "{% if not gate %}Required{% endif %}"
 
 gate_allow:
   type: str
   help: Claude Code allow-rule prefix for running the gate without a prompt
+  when: "{{ template == 'contract' }}"
   default: "{{ gate.split(' -')[0] }}"
-
-stale_days:
-  type: int
-  help: Days without a commit before wt status flags a worktree STALE (wt.staleDays)
-  default: 7
 
 main_edit_allow:
   type: yaml
   help: >-
     Paths agents may edit in the MAIN checkout (wt.mainEditAllow), as a YAML list,
     gitignore-style — e.g. ["INDEX.md", "README.md", "claude-outputs/"]. Usually none.
+  when: "{{ template == 'contract' }}"
   default: []
   validator: "{% if main_edit_allow is string or main_edit_allow is mapping %}Must be a YAML list{% endif %}"
 
@@ -80,5 +154,6 @@ extra_allow:
   help: >-
     Extra read-only Bash commands Claude Code may run without asking, as a YAML list of
     command prefixes — e.g. ["devops-test"]. Becomes "Bash(<prefix>:*)" allow rules.
+  when: "{{ template == 'contract' }}"
   default: []
   validator: "{% if extra_allow is string or extra_allow is mapping %}Must be a YAML list{% endif %}"

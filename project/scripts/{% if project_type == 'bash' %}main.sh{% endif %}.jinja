@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# main.sh — entry point for {{ repo_name }}.
+# shellcheck source-path=SCRIPTDIR
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# shellcheck source=lib.sh
+source "$SCRIPT_DIR/lib.sh"
+
+main() {
+    log_info "{{ repo_name }}: project root is $PROJECT_ROOT"
+}
+
+main "$@"

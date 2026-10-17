@@ -1,0 +1,9 @@
+# https://github.com/terraform-linters/tflint — run by scripts/check.sh
+config {
+  call_module_type = "local"
+}
+
+plugin "terraform" {
+  enabled = true
+  preset  = "recommended"
+}

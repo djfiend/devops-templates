@@ -1,0 +1,11 @@
+terraform {
+  required_version = ">= 1.6"
+
+  required_providers {
+    # Pin every provider to a major version, e.g.:
+    # aws = {
+    #   source  = "hashicorp/aws"
+    #   version = "~> 6.0"
+    # }
+  }
+}
