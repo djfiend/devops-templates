@@ -12,25 +12,16 @@ and Copier sees real PEP 440 tags (the `copier update` round trip needs two of t
 from __future__ import annotations
 
 import json
-import os
-import shlex
 import shutil
-import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-COPIER = shlex.split(os.environ.get("COPIER", "copier"))
-GIT_ENV = {
-    "GIT_AUTHOR_NAME": "t",
-    "GIT_AUTHOR_EMAIL": "t@example.invalid",
-    "GIT_COMMITTER_NAME": "t",
-    "GIT_COMMITTER_EMAIL": "t@example.invalid",
-    "GIT_CONFIG_NOSYSTEM": "1",
-}
-SNAPSHOT = ["copier.yml", "contract"]
+from helpers import COPIER, ROOT, git, run, snapshot, wtconfig
+from helpers import commit_all as _commit_all
+from helpers import new_repo as _new_repo
+
 MANAGED = [
     ".claude/hooks/main-checkout-guard.py",
     ".claude/hooks/tests/test_main_checkout_guard.py",
@@ -40,30 +31,21 @@ MANAGED = [
 ]
 SEEDED = ["AGENTS.md", "CLAUDE.md", ".gitignore"]
 ANSWERS = ".copier-answers.contract.yml"
-
-
-def run(*args, cwd, check=True, env=None):
-    r = subprocess.run(
-        [str(a) for a in args],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        env={**os.environ, **GIT_ENV, **(env or {})},
-    )
-    if check and r.returncode != 0:
-        raise AssertionError(
-            f"{shlex.join(map(str, args))} -> {r.returncode}\n{r.stdout}\n{r.stderr}"
-        )
-    return r
-
-
-def git(*args, cwd, check=True):
-    return run("git", *args, cwd=cwd, check=check)
-
-
-def wtconfig(repo: Path, key: str) -> list[str]:
-    out = git("config", "-f", ".wtconfig", "--get-all", key, cwd=repo, check=False)
-    return out.stdout.split("\n")[:-1] if out.returncode == 0 else []
+# The contract answers file records exactly these keys: the project template's questions
+# must never leak into it (they are `when: template == 'project'`).
+CONTRACT_KEYS = {
+    "_commit",
+    "_src_path",
+    "base",
+    "extra_allow",
+    "gate",
+    "gate_allow",
+    "main_edit_allow",
+    "repo_description",
+    "repo_name",
+    "stale_days",
+    "template",
+}
 
 
 class ContractTemplate(unittest.TestCase):
@@ -71,37 +53,14 @@ class ContractTemplate(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = tempfile.TemporaryDirectory()
         cls.base = Path(cls.tmp.name).resolve()
-        # Snapshot the template into a git repo with a release tag.
-        cls.tpl = cls.base / "tpl"
-        cls.tpl.mkdir()
-        for name in SNAPSHOT:
-            src = ROOT / name
-            if src.is_dir():
-                shutil.copytree(
-                    src, cls.tpl / name, ignore=shutil.ignore_patterns("__pycache__")
-                )
-            else:
-                shutil.copy2(src, cls.tpl / name)
-        git("init", "-q", "-b", "main", cwd=cls.tpl)
-        git("add", "-A", cwd=cls.tpl)
-        git("commit", "-q", "-m", "snapshot", cwd=cls.tpl)
-        git("tag", "v1.0.0", cwd=cls.tpl)
+        cls.tpl = snapshot(cls.base / "tpl", "v1.0.0")
 
     @classmethod
     def tearDownClass(cls):
         cls.tmp.cleanup()
 
     def new_repo(self, name: str, files: dict[str, str] | None = None) -> Path:
-        repo = self.base / name
-        repo.mkdir()
-        git("init", "-q", "-b", "main", cwd=repo)
-        for rel, text in (files or {"README.md": "x\n"}).items():
-            p = repo / rel
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(text)
-        git("add", "-A", cwd=repo)
-        git("commit", "-q", "-m", "init", cwd=repo)
-        return repo
+        return _new_repo(self.base / name, files or {"README.md": "x\n"})
 
     def render(self, repo: Path, *data: str, ref: str = "v1.0.0"):
         args = [
@@ -118,8 +77,7 @@ class ContractTemplate(unittest.TestCase):
         return run(*args, self.tpl, ".", cwd=repo)
 
     def commit_all(self, repo: Path, msg: str):
-        git("add", "-A", cwd=repo)
-        git("commit", "-q", "-m", msg, cwd=repo)
+        _commit_all(repo, msg)
 
     # --- rendering ------------------------------------------------------------------------
 
@@ -187,6 +145,16 @@ class ContractTemplate(unittest.TestCase):
         self.assertEqual(wtconfig(repo, "wt.staleDays"), ["10"])
         perms = json.loads((repo / ".claude/settings.json").read_text())["permissions"]
         self.assertIn("Bash(python3 scripts/library-lint.py:*)", perms["allow"])
+
+    def test_answers_file_has_only_contract_keys(self):
+        repo = self.new_repo("answers")
+        self.render(repo)
+        keys = {
+            line.split(":", 1)[0]
+            for line in (repo / ANSWERS).read_text().splitlines()
+            if line and not line.startswith(("#", " ", "-"))
+        }
+        self.assertEqual(keys, CONTRACT_KEYS)
 
     def test_seeded_files_are_kept(self):
         own = {
