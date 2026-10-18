@@ -10,6 +10,9 @@ subdirectory that is rendered, and each template keeps its own answers file
 | `contract` | The **multi-agent contract layer** — what a repo needs so several agents can work in it safely ([the contract](docs/multi-agent-ready-contract.md)) | v1 |
 | `project` | A **new project** of one of six types — python, bash, generic, ansible, docker, terraform — with a real gate and CI. Layer `contract` on top | v1.1 |
 
+How the templates are maintained, released and consumed (with workflow charts):
+[docs/operations.md](docs/operations.md).
+
 ## Prerequisites
 
 - `git` and [`uv`](https://docs.astral.sh/uv/)
