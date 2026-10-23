@@ -32,7 +32,7 @@ How the templates are maintained, released and consumed (with workflow charts):
 |---|---|---|
 | `.wtconfig` | managed | `wt.base`, `wt.gate`, `wt.staleDays`, `wt.mainEditAllow` — from your answers |
 | `.claude/settings.json` | managed | Claude Code allow/ask/deny baseline + the guard hook; the gate and `extra_allow` become allow rules |
-| `.claude/hooks/main-checkout-guard.py` | managed | Blocks edits in the main checkout (except `wt.mainEditAllow`) and in other workers' worktrees, judged by the *target* file |
+| `.claude/hooks/main-checkout-guard.py` | managed | Judges each edit by the *target* file's checkout: blocks the main checkout (except `wt.mainEditAllow`) and edits from one linked worktree into another. A main-checkout session may edit linked worktrees (deliberate); shell writes are not seen |
 | `.claude/hooks/tests/` | managed | The hook's unit tests (run them in your gate) |
 | `.gemini/settings.json` | managed | Gemini CLI reads `AGENTS.md` |
 | `AGENTS.md` | seeded | Written only if absent: every section `wt doctor` requires, with TODOs |

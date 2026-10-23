@@ -1,6 +1,6 @@
 # devops-templates — Operations Guide
 
-**Applies to:** devops-templates v1.1.0
+**Applies to:** devops-templates v1.1.1
 **Audience:** maintainers of the templates (Josh and agents working in this repo), and
 anyone operating a repo that has adopted them
 **Related:** [README](../README.md) (what each template renders, questions) ·

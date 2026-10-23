@@ -20,6 +20,8 @@ on (D1–D7) are recorded in the library's
 [`linux-devops-workspace-adoption-plan.md`](https://github.com/djfiend/library/blob/main/plans/multi-agent-workflows/linux-devops-workspace-adoption-plan.md#decisions).
 Changes to this document go through this repository like any template change
 (topic branch, gate, release tag).
+Editorial correction 2026-10-23 (C10.1, C10.2; library audit 2026-10-19): the
+guard and CI boundaries are stated as implemented. No requirement changed.
 
 Keywords: **MUST** = required to pass; **SHOULD** = expected unless the
 repo's `AGENTS.md` says why not.
@@ -151,8 +153,8 @@ Examples: library → `python3 scripts/library-lint.py --changed`.
 
 | # | Requirement | Level |
 |---|---|---|
-| C10.1 | Where a tool supports it, enforce the rules on the worker: Claude Code `.claude/settings.json` deny/ask rules and a main-checkout guard hook. Both ship in the `contract` template. The hook decides from the *target* file's checkout (not the session's): main-checkout files are blocked except `wt.mainEditAllow` paths, and a worker cannot edit another worker's worktree | SHOULD |
-| C10.2 | Tools without enforcement are bound by `AGENTS.md`, the gate and review. The repo's `AGENTS.md` lists which tools are enforced and which aren't. CI running the gate on every push and PR (C5.2) is the enforcement that applies to every tool, since harness rules and hooks bind only the tool that loads them | MUST |
+| C10.1 | Where a tool supports it, enforce the rules on the worker: Claude Code `.claude/settings.json` deny/ask rules and a main-checkout guard hook. Both ship in the `contract` template. The hook decides from the *target* file's checkout (not the session's): main-checkout files are blocked except `wt.mainEditAllow` paths, and a session in one linked worktree cannot edit another linked worktree of the same repository. A session in the main checkout is deliberately allowed to edit linked worktrees; it gains no ownership of them (C3.2 still applies). The hook covers the tool's file-edit calls, not shell writes | SHOULD |
+| C10.2 | Tools without enforcement are bound by `AGENTS.md`, the gate and review. The repo's `AGENTS.md` lists which tools are enforced and which aren't. CI running the gate on every push and PR (C5.2) applies to every tool's contributions, since harness rules and hooks bind only the tool that loads them. It verifies only what the gate checks: declared scope, single-writer ownership, attribution, the handoff block and owner approvals are left to integrator or owner review, so a passing CI run is not a complete compliance verdict | MUST |
 
 ---
 
