@@ -3,6 +3,23 @@
 What each release changes for repositories that use the templates. Versions are
 git tags (`vX.Y.Z`, PEP 440).
 
+## v1.1.1 — 2026-10-23
+
+Wording fix (library audit 2026-10-19, the guard and CI findings). No managed
+file changes: `copier update` on an existing adopter changes only `_commit`.
+
+- Seeded `AGENTS.md` (`includes/agents.md.jinja`, both templates): the guard-hook
+  bullet now says what the hook does. It blocks main-checkout edits (except
+  `wt.mainEditAllow`) and edits from one linked worktree into another. A
+  main-checkout session may edit linked worktrees on purpose and gains no
+  ownership. A new note under the enforcement table says CI checks only the
+  gate; scope, ownership, attribution, handoffs and approvals are checked in
+  review. New projects get this text. Existing projects keep their seeded copy,
+  so update it by hand if you want it.
+- Contract C10.1 and C10.2 corrected the same way (editorial; no requirement
+  changed, still v1.0). README file table and this repo's `AGENTS.md` aligned.
+- Guard hook code and tests unchanged.
+
 ## v1.1.0 — 2026-10-17
 
 New `project` template (adoption phase 6). The `contract` template's rendered files

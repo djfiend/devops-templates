@@ -41,7 +41,7 @@ This repo follows the [multi-agent ready contract](https://github.com/djfiend/de
 
 - **Trunk:** the base branch is `main` (`wt.base`).
 - **One task = one worktree = one topic branch** named `<type>/<description>`, created with `wt new <type>/<description>` under `.worktrees/` (git-ignored). Never work directly on `main`.
-- **The main checkout is an integration point, not a workspace.** For Claude Code, `.claude/hooks/main-checkout-guard.py` blocks file edits there and in other workers' worktrees (owner-only override: `REPO_ALLOW_MAIN_EDIT=1`). It does not see shell writes (`sed -i`, heredocs) — the rule still applies to them.
+- **The main checkout is an integration point, not a workspace.** For Claude Code, `.claude/hooks/main-checkout-guard.py` judges each file edit by the target file's checkout: it blocks edits in the main checkout (except `wt.mainEditAllow` paths) and edits from one linked worktree into another. A session in the main checkout may still edit linked worktrees; that is deliberate, and it does not make that session their owner. Owner-only override: `REPO_ALLOW_MAIN_EDIT=1`. The hook does not see shell writes (`sed -i`, heredocs) — the rules still apply to them.
 - **Merging:** topic branches merge into `main` with `git merge --no-ff`, by Josh or an integrator he started. Agents never merge their own branch. Keep a branch current with `git merge main` — never rebase or force-push. Merge or explicitly park a branch within ~7 days.
 - **Environments:** a worktree belongs to the environment that created it. To continue elsewhere, commit, then add a fresh worktree there against the same branch. In an ephemeral environment (Cowork VM, container), lock the worktree at creation with a reason naming the session, and finish to merge-ready before the session ends. Leave no uncommitted work in any worktree.
 - **Never run `git worktree prune`** from an environment that did not create the worktrees.
@@ -54,6 +54,8 @@ Enforcement (contract C10):
 |---|---|---|
 | Claude Code | `.claude/settings.json` allow/ask/deny rules + main-checkout guard hook | Enforced |
 | Codex, Gemini CLI, Copilot, Cline, others | This file, the gate, and review | Not enforced |
+
+For Claude Code, the hook covers its file-edit tools and the permission rules cover the commands they list; nothing else is enforced. CI runs the gate on every push and PR whichever tool wrote the change, but it checks only what the gate checks: declared scope, one writer per worktree, attribution, the handoff block and owner approvals are checked in review.
 
 ## Approval boundaries
 
