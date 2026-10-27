@@ -122,6 +122,7 @@ flowchart LR
 |---|---|---|
 | Local | `scripts/check.sh` | ~6 min (approximate). Needs bash, git, Python ≥ 3.10, uv |
 | Specific Python | `PYTHON=python3.14 scripts/check.sh` | |
+| No network | `scripts/check.sh --offline` | after one online run; `UV_OFFLINE=1`, passed to every scaffold gate; refused with `--strict` (contract C5.4) |
 | CI | `scripts/check.sh --strict` (Python 3.10 + 3.14) | installs bats, terraform, tflint (Docker on the runner); a SKIP fails; tree must stay clean |
 | One type, keep output | `scripts/scaffold-gates.sh --keep python` | prints where the scaffold is |
 
@@ -211,6 +212,7 @@ in the toolkit's `docs/system-integration.md` (private repo).
 | Bash `${#arr[@]}` breaks rendering | `{#` opens a Jinja comment | wrap in `{% raw %}…{% endraw %}` |
 | A project-only seeded path also skips files in `contract` | unscoped `_skip_if_exists` entry | wrap it in `{% if template == 'project' %}…{% endif %}` |
 | Scaffold gate SKIP locally | bats/docker/terraform/tflint missing | fine locally; CI `--strict` runs them |
+| `--offline` fails with a uv "network disabled" / not-in-cache error | cold uv cache (new pin, new machine, cache pruned) | run the gate online once, then `--offline` again |
 | `wt doctor` render check skipped | `wt` not installed | install devops-workspace (≥ v4.0.1) |
 | Adopter gets conflict markers on update | adopter edited a managed file | move the change here, release, re-update |
 | Change didn't reach existing projects | file is seeded | document the manual patch in CHANGELOG |

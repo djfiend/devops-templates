@@ -22,11 +22,14 @@
 #                            tflint) is a SKIP; with --strict (CI) it is a failure
 #
 # Requirements: bash, git, python3 (>= 3.10), uv. Tools are pinned below and run through
-# uvx; the first run downloads them into the uv cache, after that no network is needed
-# (UV_OFFLINE=1 enforces that).
+# uvx. Online, the gate uses the network only to fetch those pinned tools and the scaffolds'
+# pinned inputs; every check runs against local files (contract C5.2). Once they are cached,
+# --offline runs the gate with no network (UV_OFFLINE=1, passed on to every scaffold gate);
+# a step that cannot run offline reports SKIP and says why (C5.4).
 #
 # Usage: scripts/check.sh                       run the gate
 #        scripts/check.sh --strict              scaffold gates fail on a skipped tool (CI)
+#        scripts/check.sh --offline             no network; never with --strict (CI never runs offline)
 #        PYTHON=python3.14 scripts/check.sh     run it under a specific interpreter
 
 set -euo pipefail
@@ -39,14 +42,25 @@ YAMLLINT_VERSION="1.38.0"         # render tests: rendered YAML parses
 
 PYTHON="${PYTHON:-python3}"
 STRICT=()
-case "${1:-}" in
-    --strict) STRICT=(--strict) ;;
-    "") ;;
-    *)
-        echo "usage: scripts/check.sh [--strict]" >&2
-        exit 2
-        ;;
-esac
+OFFLINE=()
+for arg in "$@"; do
+    case "$arg" in
+        --strict) STRICT=(--strict) ;;
+        --offline) OFFLINE=(--offline) ;;
+        *)
+            echo "usage: scripts/check.sh [--strict | --offline]" >&2
+            exit 2
+            ;;
+    esac
+done
+if ((${#STRICT[@]} && ${#OFFLINE[@]})); then
+    echo "check.sh: --offline cannot be combined with --strict (CI never runs offline; contract C5.4)" >&2
+    exit 2
+fi
+if ((${#OFFLINE[@]})); then
+    # uv and uvx use only their cache; a missing tool fails instead of downloading.
+    export UV_OFFLINE=1
+fi
 COPIER_CMD="uvx --quiet --python $PYTHON --from copier==${COPIER_VERSION} copier"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
@@ -130,7 +144,7 @@ render_tests() {
 
 scaffold_gates() {
     local out rc=0
-    out="$(COPIER="$COPIER_CMD" scripts/scaffold-gates.sh "${STRICT[@]}" 2>&1)" || rc=$?
+    out="$(COPIER="$COPIER_CMD" scripts/scaffold-gates.sh "${STRICT[@]}" "${OFFLINE[@]}" 2>&1)" || rc=$?
     if ((rc)); then
         printf '%s\n' "$out"
     else
@@ -143,7 +157,8 @@ require git
 require uv
 require "$PYTHON"
 
-printf '%scheck.sh%s — %s @ %s\n' "$BOLD" "$RESET" "$(basename "$REPO_ROOT")" "$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+printf '%scheck.sh%s — %s @ %s%s\n' "$BOLD" "$RESET" "$(basename "$REPO_ROOT")" \
+    "$(git rev-parse --short HEAD 2>/dev/null || echo '?')" "${STRICT[*]:+ (strict)}${OFFLINE[*]:+ (offline)}"
 
 step "python >= 3.10"     python_floor
 step "ruff check"         ruff check --no-cache .

@@ -83,7 +83,9 @@ TODO: how to run it.
 
 The gate is `scripts/check.sh`: run it before every handoff or merge. CI runs
 `scripts/check.sh --strict`, where a check whose tool is missing fails instead of
-being skipped. Instructions for coding agents are in [AGENTS.md](AGENTS.md).
+being skipped. With no network, `scripts/check.sh --offline` runs the gate from the
+uv cache once an online run has filled it; a step that needs the network reports
+SKIP. Instructions for coding agents are in [AGENTS.md](AGENTS.md).
 
 Scaffolded from [devops-templates](https://github.com/djfiend/devops-templates)
 (`project` and `contract` templates). To take a newer template release, run
