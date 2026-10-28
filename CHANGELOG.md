@@ -3,6 +3,31 @@
 What each release changes for repositories that use the templates. Versions are
 git tags (`vX.Y.Z`, PEP 440).
 
+## v1.2.0 — 2026-10-27
+
+Contract v1.1 and an offline gate mode (owner decisions 2026-10-24 and
+2026-10-27). The `contract` template's rendered files are unchanged: `copier
+update` on an existing adopter changes only `_commit`.
+
+- **Contract v1.1:** C5.2 now reads "the gate runs the same way locally and in CI
+  and needs no secrets. Network is used only to fetch pinned, versioned inputs;
+  every check runs against local files" (v1.0 forbade the network, which neither
+  code gate met). New C5.4 (SHOULD): once its inputs are cached the gate runs
+  offline with `--offline`, naming any step it skips; CI never runs offline. Every
+  repo that met v1.0 meets v1.1's MUSTs.
+- **Seeded project gate** (`project/scripts/check.sh.jinja`, every type):
+  `--offline` exports `UV_OFFLINE=1`, so uv and uvx run from their cache and a
+  missing tool fails instead of downloading. `--offline --strict` exits 2. ansible:
+  ansible-lint gets `--offline` (no `requirements.yml` install, no schema refresh).
+  terraform: `validate` skips `init` when `.terraform/` exists, and is a SKIP with
+  the reason when locked providers are not installed yet; tflint skips `--init`. The
+  banner says `(offline)`. New projects get it; existing projects keep their seeded
+  gate, so copy the argument handling from the template by hand if you want it.
+- **This repo's gate:** `scripts/check.sh --offline` and `scripts/scaffold-gates.sh
+  --offline` (same rules; passed on to every scaffold gate). Render tests cover the
+  `--strict`/`--offline` refusal and an offline run of a rendered gate.
+- Seeded project `README.md` mentions `--offline`. Seeded `AGENTS.md` unchanged.
+
 ## v1.1.1 — 2026-10-23
 
 Wording fix (library audit 2026-10-19, the guard and CI findings). No managed

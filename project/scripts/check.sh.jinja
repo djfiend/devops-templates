@@ -34,8 +34,10 @@
 #   {% set n.i = n.i + 1 %}{{ n.i }}. shellcheck          every *.sh{% if project_type == 'bash' %} and *.bats{% endif %} (scripts/ and tests/ included)
 #   {% set n.i = n.i + 1 %}{{ n.i }}. actionlint          .github/workflows/
 #
-# Tools are pinned below. PyPI-packaged tools run through uvx: the first run downloads them
-# into the uv cache, after that no network is needed.
+# Tools are pinned below. PyPI-packaged tools run through uvx. Online, the gate uses the network
+# only to fetch pinned, versioned inputs (these tools{{ ', the locked dependencies' if project_type == 'python' else '' }}); every check runs
+# against local files (contract C5.2). Once they are cached, --offline runs it with no network
+# (UV_OFFLINE=1): a step that cannot run offline reports SKIP and says why (C5.4).
 {%- if project_type in ['bash', 'docker', 'terraform'] %}
 # {{ {'bash': 'bats', 'docker': 'docker', 'terraform': 'terraform and tflint'}[project_type] }} must be on PATH: when missing, the step
 # reports SKIP with an install hint. CI installs {{ 'it' if project_type in ['bash', 'docker'] else 'them' }} (check.yml).
@@ -43,6 +45,8 @@
 #
 # Usage: scripts/check.sh            run the gate (a missing tool is a SKIP, not a pass)
 #        scripts/check.sh --strict   a SKIP fails the gate (CI uses this)
+#        scripts/check.sh --offline  no network: tools come from the uv cache (never with --strict;
+#                                    CI never runs offline)
 # Requirements: bash, uv.
 
 set -euo pipefail
@@ -72,14 +76,25 @@ HADOLINT_PY_VERSION="2.15.1.2"
 SKIP=77
 
 STRICT=0
-case "${1:-}" in
-    --strict) STRICT=1 ;;
-    "") ;;
-    *)
-        echo "usage: scripts/check.sh [--strict]" >&2
-        exit 2
-        ;;
-esac
+OFFLINE=0
+for arg in "$@"; do
+    case "$arg" in
+        --strict) STRICT=1 ;;
+        --offline) OFFLINE=1 ;;
+        *)
+            echo "usage: scripts/check.sh [--strict | --offline]" >&2
+            exit 2
+            ;;
+    esac
+done
+if ((STRICT && OFFLINE)); then
+    echo "check.sh: --offline cannot be combined with --strict (CI never runs offline; contract C5.4)" >&2
+    exit 2
+fi
+if ((OFFLINE)); then
+    # uv and uvx use only their cache; a missing tool or dependency fails instead of downloading.
+    export UV_OFFLINE=1
+fi
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
@@ -134,8 +149,12 @@ shfmt() { uvx --quiet --from "shfmt-py==${SHFMT_PY_VERSION}" shfmt "$@"; }
 {%- if project_type == 'ansible' %}
 yamllint() { uvx --quiet --from "yamllint==${YAMLLINT_VERSION}" yamllint "$@"; }
 ansible_lint() {
+    local mode=()
+    if ((OFFLINE)); then
+        mode=(--offline) # no requirements.yml install, no schema refresh
+    fi
     uvx --quiet --python "$ANSIBLE_PYTHON" --from "ansible-lint==${ANSIBLE_LINT_VERSION}" \
-        --with "ansible-core==${ANSIBLE_CORE_VERSION}" ansible-lint "$@"
+        --with "ansible-core==${ANSIBLE_CORE_VERSION}" ansible-lint "${mode[@]}" "$@"
 }
 ansible_playbook() {
     uvx --quiet --python "$ANSIBLE_PYTHON" --from "ansible-core==${ANSIBLE_CORE_VERSION}" ansible-playbook "$@"
@@ -198,11 +217,25 @@ terraform_fmt() {
 
 terraform_validate() {
     need terraform "install Terraform: https://developer.hashicorp.com/terraform/install" || return
+    if ((OFFLINE)) && [[ -d .terraform ]]; then
+        terraform validate # already initialized: no init, so nothing is fetched
+        return
+    fi
+    if ((OFFLINE)) && [[ -f .terraform.lock.hcl ]]; then
+        echo "  offline: terraform init needs the network to install the locked providers — run the gate online once"
+        return "$SKIP"
+    fi
     terraform init -backend=false -input=false >/dev/null && terraform validate
 }
 
 run_tflint() {
     need tflint "install TFLint: https://github.com/terraform-linters/tflint#installation" || return
+    if ((OFFLINE)); then
+        # No --init: the bundled terraform ruleset needs no download; a plugin with a `source`
+        # in .tflint.hcl must already be installed.
+        tflint --recursive
+        return
+    fi
     tflint --init >/dev/null && tflint --recursive
 }
 {%- endif %}
@@ -213,7 +246,7 @@ command -v uv >/dev/null 2>&1 || {
 }
 
 printf '%scheck.sh%s — %s @ %s%s\n' "$BOLD" "$RESET" "$(basename "$REPO_ROOT")" \
-    "$(git rev-parse --short HEAD 2>/dev/null || echo '?')" "$( ((STRICT)) && echo ' (strict)')"
+    "$(git rev-parse --short HEAD 2>/dev/null || echo '?')" "$( ((STRICT)) && echo ' (strict)')$( ((OFFLINE)) && echo ' (offline)')"
 {% if project_type == 'python' %}
 step "uv.lock current" uv lock --check
 step "ruff check" ruff check --no-cache .

@@ -6,8 +6,10 @@
 # does, lock (python), commit, then run `wt doctor` (when wt is installed) and the
 # scaffold's scripts/check.sh. A scaffold must also leave its tree clean.
 #
-# Usage: scripts/scaffold-gates.sh [--strict] [--keep] [TYPE...]
+# Usage: scripts/scaffold-gates.sh [--strict | --offline] [--keep] [TYPE...]
 #   --strict  pass --strict to every scaffold gate (a missing tool fails; CI uses this)
+#   --offline no network (UV_OFFLINE=1): pass --offline to every scaffold gate; tools, the
+#             python scaffold's dependencies and its build backend must be in the uv cache
 #   --keep    keep the scaffolds and print where they are
 #   TYPE      python bash generic ansible docker terraform (default: all)
 # Environment: COPIER  the copier command (default: copier; scripts/check.sh pins it)
@@ -18,18 +20,26 @@ ALL_TYPES=(python bash generic ansible docker terraform)
 SNAPSHOT=(copier.yml contract project includes)
 read -r -a COPIER <<<"${COPIER:-copier}"
 
-strict=() keep=0 types=()
+strict=() offline=() keep=0 types=()
 for arg in "$@"; do
     case "$arg" in
         --strict) strict=(--strict) ;;
+        --offline) offline=(--offline) ;;
         --keep) keep=1 ;;
         -*)
-            echo "usage: scripts/scaffold-gates.sh [--strict] [--keep] [TYPE...]" >&2
+            echo "usage: scripts/scaffold-gates.sh [--strict | --offline] [--keep] [TYPE...]" >&2
             exit 2
             ;;
         *) types+=("$arg") ;;
     esac
 done
+if ((${#strict[@]} && ${#offline[@]})); then
+    echo "scaffold-gates.sh: --offline cannot be combined with --strict (contract C5.4)" >&2
+    exit 2
+fi
+if ((${#offline[@]})); then
+    export UV_OFFLINE=1 # covers `uv lock` below as well as the scaffold gates
+fi
 ((${#types[@]})) || types=("${ALL_TYPES[@]}")
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -70,7 +80,7 @@ scaffold() { # scaffold <type>: render, commit, doctor, gate; return non-zero on
     else
         echo "  (wt not on PATH: wt doctor not run)"
     fi
-    scripts/check.sh "${strict[@]}" || return
+    scripts/check.sh "${strict[@]}" "${offline[@]}" || return
     dirty="$(git status --porcelain)"
     if [[ -n "$dirty" ]]; then
         printf 'gate left the tree dirty:\n%s\n' "$dirty"

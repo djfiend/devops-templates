@@ -157,7 +157,10 @@ The gate pins every tool. PyPI-packaged tools run through `uvx`; bats, docker,
 terraform and tflint must be on `PATH`, and a missing one is reported as
 **SKIP** with an install hint. `scripts/check.sh --strict` (what CI runs, with
 those tools installed) turns a skip into a failure. A python scaffold needs a
-committed `uv.lock` (`uv lock`) before its gate passes.
+committed `uv.lock` (`uv lock`) before its gate passes. Online, a gate fetches only
+pinned tools and dependencies; once they are cached, `scripts/check.sh --offline`
+runs it with no network (`UV_OFFLINE=1`), and a step that can't run offline is a
+SKIP that says why (contract C5.2, C5.4). `--offline` and `--strict` don't combine.
 
 ### Seeded and managed
 
@@ -184,7 +187,8 @@ copier update --answers-file .copier-answers.contract.yml
 
 This repository follows its own contract (`AGENTS.md`); its root `.claude/`,
 `.gemini/` and `.wtconfig` are an application of `contract/`. The gate is
-`scripts/check.sh` (CI runs it with `--strict` on Python 3.10 and 3.14). It
+`scripts/check.sh` (CI runs it with `--strict` on Python 3.10 and 3.14;
+`--offline` runs it from a warm uv cache). It
 renders every template into throwaway repos, runs `copier update` round trips
 between two tags, and scaffolds every project type to run that scaffold's own
 gate (`scripts/scaffold-gates.sh`), so every change is tested the way adopting

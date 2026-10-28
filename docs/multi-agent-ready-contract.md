@@ -1,4 +1,4 @@
-# Multi-agent ready contract (v1.0)
+# Multi-agent ready contract (v1.1)
 
 The standard the `contract` template in this repository implements. Moved here
 from the library (`plans/multi-agent-workflows/`, library `c4c4f07`) on 2026-10-15
@@ -14,7 +14,7 @@ library already does (`GOVERNANCE.md` § Multi-Agent Operation) into
 repo-neutral terms. The library is the reference implementation and must pass
 its own contract.
 
-**Status:** v1.0, stable. `linux-devops-workspace` passed it first (phase 2–4)
+**Status:** v1.1, stable. `linux-devops-workspace` passed it first (phase 2–4)
 and the library is the second repo (Rule 9). The adoption decisions it relies
 on (D1–D7) are recorded in the library's
 [`linux-devops-workspace-adoption-plan.md`](https://github.com/djfiend/library/blob/main/plans/multi-agent-workflows/linux-devops-workspace-adoption-plan.md#decisions).
@@ -22,6 +22,11 @@ Changes to this document go through this repository like any template change
 (topic branch, gate, release tag).
 Editorial correction 2026-10-23 (C10.1, C10.2; library audit 2026-10-19): the
 guard and CI boundaries are stated as implemented. No requirement changed.
+v1.1 (2026-10-27, devops-templates `v1.2.0`; owner decisions 2026-10-24 and
+2026-10-27): C5.2 no longer forbids the network. The gate may fetch pinned,
+versioned inputs and nothing else; secrets stay forbidden. New C5.4 (SHOULD):
+an offline mode once those inputs are cached. A repo that met v1.0 meets v1.1's
+MUSTs unchanged.
 
 Keywords: **MUST** = required to pass; **SHOULD** = expected unless the
 repo's `AGENTS.md` says why not.
@@ -112,11 +117,23 @@ Handoff:
 | # | Requirement | Level |
 |---|---|---|
 | C5.1 | The repo has **one** gate command that must exit 0 before handoff, declared as `wt.gate` in `.wtconfig` and listed in `AGENTS.md` § Commands | MUST |
-| C5.2 | The gate runs the same way locally and in CI, and needs no network or secrets | MUST |
+| C5.2 | The gate runs the same way locally and in CI and needs no secrets. Network is used only to fetch pinned, versioned inputs (tools, build backends, a pinned template release); every check runs against local files | MUST |
 | C5.3 | Claims are machine-verified: "merged" means `wt status --strict` plus ancestry against the base, not a remote branch's state (item 13). "Tests pass" means the gate's output, quoted in the handoff | MUST |
+| C5.4 | Once its inputs are cached, the gate runs offline (`scripts/check.sh --offline`), naming any step it skips for lack of network. CI never runs offline, so `--offline` with `--strict` is refused | SHOULD |
 
 Examples: library → `python3 scripts/library-lint.py --changed`.
 `linux-devops-workspace` → `scripts/check.sh`, also run in CI (adoption plan D3).
+
+**Why C5.2 allows the network (v1.1):** the gates exist to verify multi-agent
+work, which happens with the network up. Forbidding it would mean vendoring every
+tool or dropping the end-to-end checks (scaffolding from a pinned template
+release). What the gate may fetch is pinned, so a run is still reproducible; what
+it checks is always the local tree, never a remote's state (C5.3). C5.4 covers
+working without a network: in the `project` template's gates and this
+repository's own, `--offline` sets `UV_OFFLINE=1`, so uv and uvx use only their
+cache and a cold cache fails loudly instead of downloading. A step that cannot run
+offline at all (e.g. `terraform init` for providers not yet installed) reports
+SKIP with the reason.
 
 ## C6 — Cleanup (library Rule 13, generalized)
 

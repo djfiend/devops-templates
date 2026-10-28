@@ -273,6 +273,26 @@ class ProjectTemplate(unittest.TestCase):
                 out = run("wt", "doctor", cwd=self.layered(t)).stdout
                 self.assertIn("0 failed", out)
 
+    # --- the seeded gate's modes -----------------------------------------------------------
+
+    def test_gate_rejects_strict_with_offline(self):
+        repo = self.layered("generic")
+        for args in (["--strict", "--offline"], ["--offline", "--strict"], ["--bogus"]):
+            with self.subTest(args=args):
+                r = run("scripts/check.sh", *args, cwd=repo, check=False)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertNotIn("GATE", r.stdout)
+
+    def test_gate_offline_runs_from_the_uv_cache(self):
+        """Contract C5.4: after one online run, --offline passes with UV_OFFLINE=1."""
+        repo = self.layered("generic")
+        # One online run warms the uv cache (a no-op when it is already warm).
+        run("scripts/check.sh", cwd=repo)
+        r = run("scripts/check.sh", "--offline", cwd=repo, check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("(offline)", r.stdout)
+        self.assertIn("GATE PASSED", r.stdout)
+
     # --- updates --------------------------------------------------------------------------
 
     def test_update_round_trip(self):
