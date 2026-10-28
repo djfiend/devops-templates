@@ -1,6 +1,6 @@
 # devops-templates — Operations Guide
 
-**Applies to:** devops-templates v1.1.1
+**Applies to:** devops-templates v1.2.0 (contract v1.1)
 **Audience:** maintainers of the templates (Josh and agents working in this repo), and
 anyone operating a repo that has adopted them
 **Related:** [README](../README.md) (what each template renders, questions) ·
@@ -40,7 +40,7 @@ flowchart TD
 | `docs/multi-agent-ready-contract.md` | The standard (C1–C10) the `contract` layer implements and `wt doctor` checks |
 | `tests/` | Render tests (Copier into throwaway repos) |
 | `scripts/check.sh`, `scripts/scaffold-gates.sh` | The gate, and the per-type scaffold-and-gate runner |
-| Root `.wtconfig`, `.claude/`, `.gemini/` | This repo's **own application** of `contract/` (currently at v1.0.0) — updated with `copier update`, never edited by hand |
+| Root `.wtconfig`, `.claude/`, `.gemini/` | This repo's **own application** of `contract/` (kept at the latest release, v1.2.0 as of 2026-10-27) — updated with `copier update`, never edited by hand |
 
 ---
 
@@ -172,8 +172,8 @@ update turns that into conflict markers.
 ## 6. Downstream consumer: devops-workspace
 
 The devops-workspace toolkit (`djfiend/linux-devops-workspace`, private) is the main
-consumer. It pins one release of this repo (`TEMPLATES_REF`, `v1.1.0` in toolkit
-v5.0.0), renders `project` then `contract` through Copier's Python API in
+consumer. It pins one release of this repo (`TEMPLATES_REF`, `v1.2.0` in toolkit
+v5.1.0), renders `project` then `contract` through Copier's Python API in
 `devops-new`, and updates layers with `devops-update`. Its gate scaffolds every type
 from the pinned tag, so **a release here is not used by new projects until the toolkit
 bumps its pin and passes its gate**.
