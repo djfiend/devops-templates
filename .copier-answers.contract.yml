@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
-_commit: v1.1.1
+_commit: v1.2.0
 _src_path: https://github.com/djfiend/devops-templates.git
 base: main
 extra_allow: []
