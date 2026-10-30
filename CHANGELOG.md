@@ -3,7 +3,12 @@
 What each release changes for repositories that use the templates. Versions are
 git tags (`vX.Y.Z`, PEP 440).
 
-## Unreleased
+## v1.2.1 — 2026-10-29
+
+Patch release for Python project-name validation. No new answers or dependencies;
+the `contract` layer's rendered files are unchanged. Existing valid projects need
+no file changes. This validation prevents new invalid scaffolds; it does not repair
+an existing project whose Python package was named after a hard keyword.
 
 - Python projects reject repository names that are hard Python keywords, such as
   `class`, before rendering unusable imports. The project type is asked before
