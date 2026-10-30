@@ -138,6 +138,14 @@ copier copy --vcs-ref vX.Y.Z -d template=contract https://github.com/djfiend/dev
 | `python_min` (python, docker) | `3.10` | `requires-python`, ruff `target-version`, CI matrix floor |
 | `base`, `stale_days` | `main`, `7` | CI branch filter; AGENTS § Multi-agent operation |
 
+Python projects derive the package import name by replacing hyphens with
+underscores. Hard Python keywords are rejected before files render: for example,
+`class` would generate the invalid statement `from class import __version__`.
+Use `class-app` (import name `class_app`) instead. Soft keywords such as `match`,
+`case` and `type` remain valid. The project type is asked before the repository
+name so interactive answers receive the same validation as supplied answers.
+Other project types and the contract layer do not apply the Python keyword rule.
+
 ### What each type renders
 
 Every type gets `README.md`, `CHANGELOG.md`, `AGENTS.md`, `.gitignore`,

@@ -3,6 +3,15 @@
 What each release changes for repositories that use the templates. Versions are
 git tags (`vX.Y.Z`, PEP 440).
 
+## Unreleased
+
+- Python projects reject repository names that are hard Python keywords, such as
+  `class`, before rendering unusable imports. The project type is asked before
+  the repository name so validation also works interactively. Hyphenated names
+  such as `class-app`, soft keywords (`match`, `case`, `type`), other project types
+  and the contract layer keep their existing naming behavior. No new answers or
+  template dependencies are introduced.
+
 ## v1.2.0 — 2026-10-27
 
 Contract v1.1 and an offline gate mode (owner decisions 2026-10-24 and
