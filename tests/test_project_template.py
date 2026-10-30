@@ -13,6 +13,7 @@ files. Running every scaffold's own gate is scripts/scaffold-gates.sh (gate step
 from __future__ import annotations
 
 import json
+import keyword
 import os
 import re
 import shlex
@@ -199,6 +200,49 @@ class ProjectTemplate(unittest.TestCase):
                         json.loads((repo / f).read_text())
                     if f.endswith(".toml") and tomllib:
                         tomllib.loads((repo / f).read_text())
+
+    def test_python_keywords_are_rejected_before_rendering(self):
+        for name in keyword.kwlist:
+            # Kebab-case already rejects capitalized keywords (True/False/None).
+            if not name.islower():
+                continue
+            with self.subTest(name=name):
+                repo = self.repo(name)
+                result = self.project(repo, "python", check=False)
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("Python keyword", result.stdout + result.stderr)
+                self.assertEqual(files_in(repo), set())
+
+    def test_explicit_python_keyword_is_rejected(self):
+        repo = self.repo()
+        result = self.project(repo, "python", "repo_name=class", check=False)
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Python keyword", result.stdout + result.stderr)
+        self.assertEqual(files_in(repo), set())
+
+    def test_python_import_names_compile(self):
+        for name in ("my-tool", "class-tool", "match", "case", "type"):
+            with self.subTest(name=name):
+                repo = self.repo(name)
+                self.project(repo, "python")
+                package = name.replace("-", "_")
+                self.assertTrue((repo / "src" / package / "__main__.py").is_file())
+                for path in repo.rglob("*.py"):
+                    compile(path.read_bytes(), str(path), "exec")
+
+    def test_keyword_names_remain_legal_for_other_project_types(self):
+        for project_type in TYPES:
+            if project_type == "python":
+                continue
+            with self.subTest(project_type=project_type):
+                repo = self.repo("class")
+                self.project(repo, project_type)
+                self.assertTrue((repo / ANSWERS).is_file())
+
+    def test_contract_accepts_python_keyword_repository_name(self):
+        repo = self.repo("class")
+        self.copier(repo, "contract")
+        self.assertTrue((repo / ".wtconfig").is_file())
 
     def test_python_answers_reach_the_files(self):
         repo = self.repo("my-tool")

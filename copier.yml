@@ -69,16 +69,39 @@ template:
     new project of a given type (layer `contract` on top): project
   default: contract
 
+# Ask the type before repo_name so its validator has the selected language in
+# interactive runs as well as --defaults / API calls with supplied answers.
+project_type:
+  type: str
+  help: Project type
+  when: "{{ template == 'project' }}"
+  choices:
+    Python package (uv, hatchling, src layout, ruff, pytest): python
+    Bash scripts (shellcheck, shfmt, bats): bash
+    language-agnostic starter (shellcheck, actionlint): generic
+    Ansible automation (ansible-lint, yamllint): ansible
+    containerised app (Dockerfile, compose, hadolint): docker
+    Terraform (fmt, validate, tflint): terraform
+  default: generic
+
 # --- shared ------------------------------------------------------------------------------
 
 repo_name:
   type: str
   help: Repository name (used in seeded files; for a project also the package / image name)
   default: "{{ _copier_conf.dst_path | realpath | basename }}"
+  # Hard Python keywords that pass the lowercase kebab-case rule (keyword.kwlist).
+  # Hyphenated names derive underscore imports; soft keywords remain legal names.
   validator: >-
     {%- if not repo_name -%}Required
     {%- elif template == 'project' and not (repo_name | regex_search('^[a-z][a-z0-9]*(-[a-z0-9]+)*$')) -%}
     Use kebab-case: lowercase letters and digits in words separated by single hyphens, starting with a letter (e.g. my-project)
+    {%- elif template == 'project' and project_type == 'python' and repo_name in
+      ['and', 'as', 'assert', 'async', 'await', 'break', 'class', 'continue',
+       'def', 'del', 'elif', 'else', 'except', 'finally', 'for', 'from',
+       'global', 'if', 'import', 'in', 'is', 'lambda', 'nonlocal', 'not',
+       'or', 'pass', 'raise', 'return', 'try', 'while', 'with', 'yield'] -%}
+    Python keyword '{{ repo_name }}' cannot be the package import name; choose another repository name (e.g. {{ repo_name }}-app)
     {%- endif -%}
 
 repo_description:
@@ -98,19 +121,6 @@ stale_days:
   default: 7
 
 # --- project template --------------------------------------------------------------------
-
-project_type:
-  type: str
-  help: Project type
-  when: "{{ template == 'project' }}"
-  choices:
-    Python package (uv, hatchling, src layout, ruff, pytest): python
-    Bash scripts (shellcheck, shfmt, bats): bash
-    language-agnostic starter (shellcheck, actionlint): generic
-    Ansible automation (ansible-lint, yamllint): ansible
-    containerised app (Dockerfile, compose, hadolint): docker
-    Terraform (fmt, validate, tflint): terraform
-  default: generic
 
 python_min:
   type: str
