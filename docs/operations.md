@@ -76,11 +76,11 @@ flowchart TD
     G -- no --> B
     G -- yes --> H["commit with Handoff block"]
     H --> I["Josh: git merge --no-ff"]
-    I --> J{"changes rendered output?"}
+    I --> CI["check.yml --strict green<br/>on the main merge commit"]
+    CI --> J{"changes rendering or validation?"}
     J -- no --> K["no release needed"]
     J -- yes --> L["Josh: tag vX.Y.Z on main, push<br/>(semver decision below)"]
-    L --> M["CI check.yml --strict green"]
-    M --> N["toolkit: bump TEMPLATES_REF<br/>→ adopters: devops-update"]
+    L --> N["toolkit: bump TEMPLATES_REF<br/>→ gate → toolkit release"]
 ```
 
 ### Release level
@@ -96,6 +96,60 @@ flowchart TD
 
 Tags are PEP 440 `vX.Y.Z` on `main`; there is no version file. Every release that
 changes rendered output gets a CHANGELOG entry.
+
+### Release verification and publication
+
+`check.yml` runs for pull requests, pushes to `main` and manual dispatches. A tag
+push does **not** start a new gate run. Require green PR checks before integration,
+then green Python 3.10 and 3.14 checks on the exact `main` merge commit before
+publishing its tag. Run the local gate as well: CI does not install `wt`, so its
+render tests skip `wt doctor` (see § 4).
+
+Release preparation happens in a topic worktree: finalize the CHANGELOG entry,
+run the gate, commit with a Handoff block, then request push/PR approval. A dated
+CHANGELOG entry records the prepared release notes; it does not prove a tag has
+been published. Josh or his designated integrator merges; Josh tags the reviewed
+merge commit. Never tag an agent's topic tip as the production release.
+
+For the prepared **v1.2.1** release, after integration and the checks above, Josh
+can use the following from the main checkout. Run each verification separately
+and resolve any mismatch before the publication commands:
+
+```bash
+cd /home/jjohnson/devops/dev/projects/devops-templates
+git status --short
+git branch --show-current
+git log -1 --oneline
+git rev-parse HEAD
+git ls-remote origin refs/heads/main
+git tag --list v1.2.1
+git ls-remote --tags origin refs/tags/v1.2.1 'refs/tags/v1.2.1^{}'
+```
+
+Require a clean tree, local `main` at the reviewed merge commit, matching remote
+`main`, and no existing `v1.2.1` tag. Confirm the CI checks belong to that same
+commit. Once release publication is approved:
+
+```bash
+git tag -a v1.2.1 -m "v1.2.1: reject Python keyword package names" HEAD
+git show --no-patch v1.2.1
+git push origin refs/tags/v1.2.1
+git ls-remote --tags origin refs/tags/v1.2.1 'refs/tags/v1.2.1^{}'
+```
+
+The remote peeled `^{}` value must equal the reviewed merge commit. If a tag
+already exists or the push fails, inspect it before taking further action; do not
+replace an existing published tag. A GitHub Release page is optional metadata;
+Copier consumes the Git tag. Local worktree cleanup remains an owner action.
+
+After the tag is published, the toolkit can pin **v1.2.1** and prepare its proposed
+**v5.1.1** patch release containing the audit fixes. Add installed-CLI regressions
+for Python keyword rejection and valid names, then run the toolkit gate against
+the real published tag, including GitHub default-source scaffolding. A local
+source override or a temporary fixture tag alone is not publication verification.
+The toolkit's own contract answers may stay at v1.2.0: this release changes project
+validation, not rendered contract files. Do not hand-edit managed answers or
+governance files merely to match the new scaffolding pin.
 
 ---
 
