@@ -1,6 +1,6 @@
 # devops-templates — Operations Guide
 
-**Applies to:** devops-templates v1.2.0 (contract v1.1)
+**Applies to:** devops-templates v1.2.1 (contract v1.1)
 **Audience:** maintainers of the templates (Josh and agents working in this repo), and
 anyone operating a repo that has adopted them
 **Related:** [README](../README.md) (what each template renders, questions) ·
@@ -40,7 +40,7 @@ flowchart TD
 | `docs/multi-agent-ready-contract.md` | The standard (C1–C10) the `contract` layer implements and `wt doctor` checks |
 | `tests/` | Render tests (Copier into throwaway repos) |
 | `scripts/check.sh`, `scripts/scaffold-gates.sh` | The gate, and the per-type scaffold-and-gate runner |
-| Root `.wtconfig`, `.claude/`, `.gemini/` | This repo's **own application** of `contract/` (kept at the latest release, v1.2.0 as of 2026-10-27) — updated with `copier update`, never edited by hand |
+| Root `.wtconfig`, `.claude/`, `.gemini/` | This repo's **own application** of `contract/` (kept at the latest release, v1.2.1 as of 2026-11-01) — updated with `copier update`, never edited by hand |
 
 ---
 
@@ -111,9 +111,8 @@ CHANGELOG entry records the prepared release notes; it does not prove a tag has
 been published. Josh or his designated integrator merges; Josh tags the reviewed
 merge commit. Never tag an agent's topic tip as the production release.
 
-For the prepared **v1.2.1** release, after integration and the checks above, Josh
-can use the following from the main checkout. Run each verification separately
-and resolve any mismatch before the publication commands:
+To publish a reviewed release `vX.Y.Z`, Josh works from the main checkout. Run each
+verification separately and resolve any mismatch before the publication commands:
 
 ```bash
 cd /home/jjohnson/devops/dev/projects/devops-templates
@@ -122,19 +121,19 @@ git branch --show-current
 git log -1 --oneline
 git rev-parse HEAD
 git ls-remote origin refs/heads/main
-git tag --list v1.2.1
-git ls-remote --tags origin refs/tags/v1.2.1 'refs/tags/v1.2.1^{}'
+git tag --list vX.Y.Z
+git ls-remote --tags origin refs/tags/vX.Y.Z 'refs/tags/vX.Y.Z^{}'
 ```
 
 Require a clean tree, local `main` at the reviewed merge commit, matching remote
-`main`, and no existing `v1.2.1` tag. Confirm the CI checks belong to that same
+`main`, and no existing `vX.Y.Z` tag. Confirm the CI checks belong to that same
 commit. Once release publication is approved:
 
 ```bash
-git tag -a v1.2.1 -m "v1.2.1: reject Python keyword package names" HEAD
-git show --no-patch v1.2.1
-git push origin refs/tags/v1.2.1
-git ls-remote --tags origin refs/tags/v1.2.1 'refs/tags/v1.2.1^{}'
+git tag -a vX.Y.Z -m "vX.Y.Z: <one-line summary>" HEAD
+git show --no-patch vX.Y.Z
+git push origin refs/tags/vX.Y.Z
+git ls-remote --tags origin refs/tags/vX.Y.Z 'refs/tags/vX.Y.Z^{}'
 ```
 
 The remote peeled `^{}` value must equal the reviewed merge commit. If a tag
@@ -142,14 +141,15 @@ already exists or the push fails, inspect it before taking further action; do no
 replace an existing published tag. A GitHub Release page is optional metadata;
 Copier consumes the Git tag. Local worktree cleanup remains an owner action.
 
-After the tag is published, the toolkit can pin **v1.2.1** and prepare its proposed
-**v5.1.1** patch release containing the audit fixes. Add installed-CLI regressions
-for Python keyword rejection and valid names, then run the toolkit gate against
-the real published tag, including GitHub default-source scaffolding. A local
-source override or a temporary fixture tag alone is not publication verification.
-The toolkit's own contract answers may stay at v1.2.0: this release changes project
-validation, not rendered contract files. Do not hand-edit managed answers or
-governance files merely to match the new scaffolding pin.
+After the tag is published, the toolkit pins it (`TEMPLATES_REF`) and prepares its
+own release (§ 6). Run the toolkit gate against the real published tag, including
+GitHub default-source scaffolding; a local source override or a temporary fixture
+tag alone is not publication verification. Adopting repos' contract answers
+(`.copier-answers.contract.yml`) move with `copier update`, never by hand-editing
+managed answers or governance files to match a new scaffolding pin.
+
+Example: v1.2.1 (2026-10-29, Python keyword package names refused) was published
+this way from merge `cff8759`; toolkit v5.1.1 pinned it the same day.
 
 ---
 
@@ -226,8 +226,8 @@ update turns that into conflict markers.
 ## 6. Downstream consumer: devops-workspace
 
 The devops-workspace toolkit (`djfiend/linux-devops-workspace`, private) is the main
-consumer. It pins one release of this repo (`TEMPLATES_REF`, `v1.2.0` in toolkit
-v5.1.0), renders `project` then `contract` through Copier's Python API in
+consumer. It pins one release of this repo (`TEMPLATES_REF`, `v1.2.1` in toolkit
+v5.1.1), renders `project` then `contract` through Copier's Python API in
 `devops-new`, and updates layers with `devops-update`. Its gate scaffolds every type
 from the pinned tag, so **a release here is not used by new projects until the toolkit
 bumps its pin and passes its gate**.
