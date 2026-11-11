@@ -20,6 +20,9 @@
 #                            devops-new does it, then the scaffold's OWN scripts/check.sh.
 #                            A tool it needs that is missing here (bats, docker, terraform,
 #                            tflint) is a SKIP; with --strict (CI) it is a failure
+#  10. action pins          scripts/check_action_pins.py: every action the scaffold CI
+#                            templates use is SHA-pinned exactly as in .github/workflows/,
+#                            which Dependabot keeps current (it cannot parse *.jinja)
 #
 # Requirements: bash, git, python3 (>= 3.10), uv. Tools are pinned below and run through
 # uvx. Online, the gate uses the network only to fetch those pinned tools and the scaffolds'
@@ -120,6 +123,10 @@ sys.exit(1 if bad else 0)
 PY
 }
 
+action_pins() {
+    "$PYTHON" -B scripts/check_action_pins.py
+}
+
 guard_hook_tests() {
     PYTHONDONTWRITEBYTECODE=1 "$PYTHON" -m unittest discover -s contract/.claude/hooks/tests
 }
@@ -169,6 +176,7 @@ step "compile"            compile_all
 step "guard-hook tests"   guard_hook_tests
 step "render tests"       render_tests
 step "scaffold gates"     scaffold_gates
+step "action pins"        action_pins
 
 total=$((passed + ${#failed[@]}))
 if ((${#failed[@]})); then

@@ -3,6 +3,22 @@
 What each release changes for repositories that use the templates. Versions are
 git tags (`vX.Y.Z`, PEP 440).
 
+## Unreleased
+
+Scaffold CI action pins. No new answers or dependencies; the `contract` layer's
+rendered files are unchanged.
+
+- **Scaffold CI** (`project/.github/workflows/check.yml.jinja`, every type):
+  `astral-sh/setup-uv` v10.3.0 → v10.3.3, the pin this repo's CI got from Dependabot
+  on 2026-11-01. New projects get it. The CI workflow is seeded, so existing
+  projects keep their copy: their own Dependabot (`.github/dependabot.yml`, seeded
+  with every project) proposes the same bump.
+- **This repo's gate:** new step 10, `scripts/check_action_pins.py`. Every action the
+  scaffold CI templates use must be SHA-pinned with a version comment exactly as in
+  `.github/workflows/`, and must be used there, so Dependabot covers it. A Dependabot
+  PR now fails the gate until the template carries the same pin, instead of relying
+  on a manual step. 14 unit tests in `tests/test_action_pins.py`.
+
 ## v1.2.1 — 2026-10-29
 
 Patch release for Python project-name validation. No new answers or dependencies;
