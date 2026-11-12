@@ -3,6 +3,8 @@
 # installs the tools the project-type scaffolds need (bats, terraform, tflint; Docker
 # comes with the runner) and runs the gate with --strict, so no scaffold check is skipped.
 # The binary pins below match the ones in project/.github/workflows/check.yml.jinja.
+# So do the action SHAs: Dependabot bumps them here only, and gate step 10
+# (scripts/check_action_pins.py) fails until the template carries the same pin.
 # `wt` (devops-workspace) is not installed here, so the `wt doctor` checks are skipped
 # in CI and run on mmisadmin02.
 name: check

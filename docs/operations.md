@@ -71,7 +71,7 @@ flowchart TD
     B --> C["try it: copier copy --vcs-ref HEAD -d template=… . /tmp/scratch<br/>or scripts/scaffold-gates.sh --keep TYPE"]
     C --> D["optional: prove it through the toolkit<br/>DEVOPS_TEMPLATES_SRC=&lt;this worktree&gt;<br/>linux-devops-workspace scripts/check.sh"]
     D --> E["CHANGELOG.md entry<br/>(what changes for adopting repos)"]
-    E --> F["scripts/check.sh — 9 steps"]
+    E --> F["scripts/check.sh — 10 steps"]
     F --> G{"GATE PASSED?"}
     G -- no --> B
     G -- yes --> H["commit with Handoff block"]
@@ -155,13 +155,14 @@ this way from merge `cff8759`; toolkit v5.1.1 pinned it the same day.
 
 ## 4. The gate — `scripts/check.sh`
 
-Nine steps, all run, summary at the end. Tool versions are pinned in the script (the
+Ten steps, all run, summary at the end. Tool versions are pinned in the script (the
 scaffolds' own pins live in `project/scripts/check.sh.jinja`) and run through `uvx`.
 
 ```mermaid
 flowchart LR
     subgraph static["Static"]
         s1["1 python ≥ 3.10"] --> s2["2 ruff check"] --> s3["3 ruff format"] --> s4["4 shellcheck"] --> s5["5 actionlint"] --> s6["6 compile"]
+        s10["10 action pins<br/>scaffold CI template SHAs =<br/>.github/workflows SHAs"]
     end
     subgraph tests["Behaviour"]
         s7["7 guard-hook tests<br/>contract/.claude/hooks/tests"]
@@ -186,7 +187,13 @@ mmisadmin02 before release so those checks are exercised.
 
 The CI binary pins (bats, terraform, tflint) must match the ones in
 `project/.github/workflows/check.yml.jinja`, so scaffolds and this repo test with the
-same tools.
+same tools. Kept in step by hand.
+
+The action SHAs must match too, and step 10 enforces it
+(`scripts/check_action_pins.py`). Dependabot only updates `.github/workflows/` —
+it cannot parse `*.jinja` — so every action the template uses must also be used by
+this repo's CI, with the identical `@<sha> # vX.Y.Z`. A Dependabot PR therefore fails
+the gate until the same bump is made in the template (see § 7).
 
 ---
 
@@ -253,7 +260,7 @@ in the toolkit's `docs/system-integration.md` (private repo).
 | Every change | worktree → gate → handoff | agent |
 | After merge with rendered changes | tag, push, confirm CI green | Josh |
 | After a release | open the toolkit pin bump; update this repo's own contract layer if the contract changed | agent proposes, Josh merges |
-| Dependabot PR | Action SHA bumps — keep the scaffold CI template pins in step | Josh |
+| Dependabot PR | Action SHA bump: CI fails at step 10 until an agent copies the pin into `project/.github/workflows/check.yml.jinja` on a `ci/` branch; merge both, then release (rendered change) and bump the toolkit pin | agent fixes, Josh merges |
 | Periodically | `copier update` this repo's own root (`.copier-answers.contract.yml`) so it dogfoods the latest contract | agent, Josh merges |
 
 ---
