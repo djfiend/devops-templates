@@ -3,10 +3,10 @@
 What each release changes for repositories that use the templates. Versions are
 git tags (`vX.Y.Z`, PEP 440).
 
-## Unreleased
+## v1.2.2 — 2026-11-12
 
-Scaffold CI action pins. No new answers or dependencies; the `contract` layer's
-rendered files are unchanged.
+Patch release for scaffold CI action pins. No new answers or dependencies; the
+`contract` layer's rendered files are unchanged.
 
 - **Scaffold CI** (`project/.github/workflows/check.yml.jinja`, every type):
   `astral-sh/setup-uv` v10.3.0 → v10.3.3, the pin this repo's CI got from Dependabot
