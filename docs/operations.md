@@ -1,6 +1,6 @@
 # devops-templates — Operations Guide
 
-**Applies to:** devops-templates v1.2.1 (contract v1.1)
+**Applies to:** devops-templates v1.2.2 (contract v1.1)
 **Audience:** maintainers of the templates (Josh and agents working in this repo), and
 anyone operating a repo that has adopted them
 **Related:** [README](../README.md) (what each template renders, questions) ·
@@ -40,7 +40,7 @@ flowchart TD
 | `docs/multi-agent-ready-contract.md` | The standard (C1–C10) the `contract` layer implements and `wt doctor` checks |
 | `tests/` | Render tests (Copier into throwaway repos) |
 | `scripts/check.sh`, `scripts/scaffold-gates.sh` | The gate, and the per-type scaffold-and-gate runner |
-| Root `.wtconfig`, `.claude/`, `.gemini/` | This repo's **own application** of `contract/` (kept at the latest release, v1.2.1 as of 2026-11-01) — updated with `copier update`, never edited by hand |
+| Root `.wtconfig`, `.claude/`, `.gemini/` | This repo's **own application** of `contract/` (kept at the latest release, v1.2.2 as of 2026-11-15) — updated with `copier update`, never edited by hand |
 
 ---
 
@@ -148,8 +148,9 @@ tag alone is not publication verification. Adopting repos' contract answers
 (`.copier-answers.contract.yml`) move with `copier update`, never by hand-editing
 managed answers or governance files to match a new scaffolding pin.
 
-Example: v1.2.1 (2026-10-29, Python keyword package names refused) was published
-this way from merge `cff8759`; toolkit v5.1.1 pinned it the same day.
+Example: v1.2.2 (2026-11-12, scaffold CI action pins) was published this way from
+merge `d092906`; toolkit v5.1.2 pinned it (merge `27bb909`). The previous release,
+v1.2.1 (2026-10-29), came from merge `cff8759` and was pinned by toolkit v5.1.1.
 
 ---
 
@@ -233,8 +234,8 @@ update turns that into conflict markers.
 ## 6. Downstream consumer: devops-workspace
 
 The devops-workspace toolkit (`djfiend/linux-devops-workspace`, private) is the main
-consumer. It pins one release of this repo (`TEMPLATES_REF`, `v1.2.1` in toolkit
-v5.1.1), renders `project` then `contract` through Copier's Python API in
+consumer. It pins one release of this repo (`TEMPLATES_REF`, `v1.2.2` in toolkit
+v5.1.2), renders `project` then `contract` through Copier's Python API in
 `devops-new`, and updates layers with `devops-update`. Its gate scaffolds every type
 from the pinned tag, so **a release here is not used by new projects until the toolkit
 bumps its pin and passes its gate**.
