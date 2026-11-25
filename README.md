@@ -140,7 +140,7 @@ copier copy --vcs-ref vX.Y.Z -d template=contract https://github.com/djfiend/dev
 
 Python projects derive the package import name by replacing hyphens with
 underscores. Hard Python keywords are rejected before files render: for example,
-`class` would generate the invalid statement `from class import __version__`.
+`class` would generate the invalid statement `from class.__main__ import main`.
 Use `class-app` (import name `class_app`) instead. Soft keywords such as `match`,
 `case` and `type` remain valid. The project type is asked before the repository
 name so interactive answers receive the same validation as supplied answers.

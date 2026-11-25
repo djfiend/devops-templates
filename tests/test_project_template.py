@@ -18,6 +18,7 @@ import os
 import re
 import shlex
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -262,6 +263,24 @@ class ProjectTemplate(unittest.TestCase):
             (repo / ".github/workflows/check.yml").read_text(),
         )
         self.assertTrue((repo / "src/my_tool/__main__.py").is_file())
+
+    def test_python_stubs_work_in_an_adopted_package(self):
+        # Adoption (item 17): the package's __init__.py already exists, so it is kept
+        # (seeded), and it has no __version__. The stubs Copier adds must not need one.
+        repo = self.repo("old-tool")
+        init = repo / "src/old_tool/__init__.py"
+        init.parent.mkdir(parents=True)
+        init.write_text('"""An existing package."""\n')
+        commit_all(repo, "existing package")
+        self.project(repo, "python")
+        self.assertEqual(init.read_text(), '"""An existing package."""\n')
+        smoke = (repo / "tests/test_smoke.py").read_text()
+        self.assertNotIn("__version__", smoke)
+        env = {"PYTHONPATH": str(repo / "src"), "PYTHONDONTWRITEBYTECODE": "1"}
+        out = run(sys.executable, "-m", "old_tool", "--version", cwd=repo, env=env)
+        self.assertEqual(out.stdout.strip(), "old-tool 0.0.0")
+        out = run(sys.executable, "-m", "old_tool", cwd=repo, env=env)
+        self.assertIn("old-tool", out.stdout)
 
     def test_project_name_must_be_kebab_case(self):
         repo = self.repo("Not_Kebab")
