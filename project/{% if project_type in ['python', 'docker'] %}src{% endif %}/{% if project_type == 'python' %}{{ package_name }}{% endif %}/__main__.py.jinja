@@ -3,14 +3,22 @@
 from __future__ import annotations
 
 import argparse
+from importlib.metadata import PackageNotFoundError, version
 
-from {{ package_name }} import __version__
+
+def package_version() -> str:
+    # Read from the installed distribution, not the package's __init__.py, so this
+    # file also works when it is added to an existing package (adoption).
+    try:
+        return version("{{ repo_name }}")
+    except PackageNotFoundError:  # a source tree that was never installed
+        return "0.0.0"
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="{{ repo_name }}", description=__doc__)
     parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {__version__}"
+        "--version", action="version", version=f"%(prog)s {package_version()}"
     )
     parser.parse_args(argv)
     print("{{ repo_name }}: TODO — replace with the real command")

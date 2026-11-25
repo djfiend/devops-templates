@@ -3,6 +3,18 @@
 What each release changes for repositories that use the templates. Versions are
 git tags (`vX.Y.Z`, PEP 440).
 
+## Unreleased
+
+- **Python stubs work in an existing package** (backlog item 17). `src/<package>/__main__.py`
+  and `tests/test_smoke.py` no longer import `__version__` from the package's
+  `__init__.py`. `__main__.py` reads the version from the installed distribution
+  itself (`package_version()`, `0.0.0` for a source tree that was never installed),
+  and the smoke test uses that. Before, adopting the `python` layer into a package
+  whose `__init__.py` has no `__version__` kept that `__init__.py` (it is seeded) but
+  added stubs that failed pytest. All three files are still seeded, so existing
+  projects keep their copies. New render test:
+  `test_python_stubs_work_in_an_adopted_package`.
+
 ## v1.2.2 — 2026-11-12
 
 Patch release for scaffold CI action pins. No new answers or dependencies; the
