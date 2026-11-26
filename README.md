@@ -111,7 +111,7 @@ copier update --answers-file .copier-answers.contract.yml
 
 Copier re-renders the old version from the answers file, computes what the
 template changed between the two versions, and applies only that to the repo.
-Review `git diff`, run the gate, commit. Updating from before `v1.2.3` also
+Review `git diff`, run the gate, commit. Updating from before `v1.3.0` also
 needs the `git config` line above in each clone (`devops-update` sets it).
 
 ### Change an answer
