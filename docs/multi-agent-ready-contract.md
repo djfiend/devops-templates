@@ -27,14 +27,14 @@ v1.1 (2026-10-27, devops-templates `v1.2.0`; owner decisions 2026-10-24 and
 versioned inputs and nothing else; secrets stay forbidden. New C5.4 (SHOULD):
 an offline mode once those inputs are cached. A repo that met v1.0 meets v1.1's
 MUSTs unchanged.
-v1.2 (devops-templates `v1.2.3`; phase 2 WS C, owner decisions P2-D1 and
+v1.2 (devops-templates `v1.3.0`; phase 2 WS C, owner decisions P2-D1 and
 C-D1..C-D6, 2026-11-15 and 2026-11-26): enforcement no longer depends on the
 tool. C2.3 integrates through a pull request with a merge commit. New C2.5
 (SHOULD): local `merge.ff=false` and `pull.ff=only`. New C10.3 (MUST): the
 `contract` layer's git hooks, active through `core.hooksPath`, refuse commits in
 the main checkout for every tool. New C10.4 (MUST for a repo hosted on GitHub):
 a ruleset protects the base branch and requires the `check` status. A repo that
-met v1.1 must adopt the v1.2.3 contract layer, set the local config, add the
+met v1.1 must adopt the v1.3.0 contract layer, set the local config, add the
 `check` CI job and get its ruleset.
 
 Keywords: **MUST** = required to pass; **SHOULD** = expected unless the

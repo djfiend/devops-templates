@@ -3,10 +3,11 @@
 What each release changes for repositories that use the templates. Versions are
 git tags (`vX.Y.Z`, PEP 440).
 
-## Unreleased
+## v1.3.0 — 2026-11-26
 
-Contract v1.2 (phase 2 WS C: tool-neutral enforcement; decisions P2-D1 and
-C-D1..C-D6). Adopting repos need `copier update` of the `contract` layer, the
+Minor release: new managed files and a CI job, each inactive until the adopting
+repo sets it up. Contract v1.2 (phase 2 WS C: tool-neutral enforcement;
+decisions P2-D1 and C-D1..C-D6). Adopting repos need `copier update` of the `contract` layer, the
 local git config below, the `check` CI job, and then a ruleset on `main`.
 
 - **Git hooks for every tool** (`contract`, new managed files):
@@ -30,6 +31,14 @@ local git config below, the `check` CI job, and then a ruleset on `main`.
   its CI, gate step 7 runs both hook suites, render tests cover the hooks and
   their execute bits, and the scaffold gates set the local config like
   `devops-new`.
+
+## v1.2.3 — 2026-11-26
+
+Patch release: the python stub fix (PR #7, merge `b01e645`). The `contract`
+layer's rendered files are unchanged. Its tag message ("git hooks refuse
+main-checkout commits for every tool") describes v1.3.0: the tag was placed on
+`b01e645` before the git-hooks merge, and published tags are not replaced, so
+the hooks ship in v1.3.0.
 
 - **Python stubs work in an existing package** (backlog item 17). `src/<package>/__main__.py`
   and `tests/test_smoke.py` no longer import `__version__` from the package's
