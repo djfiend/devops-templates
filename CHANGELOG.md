@@ -5,6 +5,32 @@ git tags (`vX.Y.Z`, PEP 440).
 
 ## Unreleased
 
+Contract v1.2 (phase 2 WS C: tool-neutral enforcement; decisions P2-D1 and
+C-D1..C-D6). Adopting repos need `copier update` of the `contract` layer, the
+local git config below, the `check` CI job, and then a ruleset on `main`.
+
+- **Git hooks for every tool** (`contract`, new managed files):
+  `.githooks/pre-commit` and `.githooks/pre-merge-commit` refuse a commit or merge
+  commit in the main checkout, whichever tool makes it; linked worktrees, a repo
+  with no commits yet and `REPO_ALLOW_MAIN_EDIT=1` are allowed. They act only once
+  the clone runs `git config core.hooksPath .githooks` (devops-workspace's
+  `devops-new` and `devops-update` will set it, with `merge.ff=false` and
+  `pull.ff=only`). Ten unit tests in `.githooks/tests/` make real commits and
+  merges in throwaway repos; run them in your gate.
+- **Required check `check`** (`project` CI template, every type): an aggregate job
+  that passes only when every `gate` job passed, so a ruleset can require one
+  stable name whatever the matrix. The CI workflow is seeded: existing projects
+  add the same job by hand (see this repo's `.github/workflows/check.yml`).
+- **Contract v1.2** (`docs/multi-agent-ready-contract.md`): C2.3 integrates through
+  a pull request with a merge commit; new C2.5 (local `merge.ff`/`pull.ff`), C10.3
+  (the git hooks, MUST) and C10.4 (GitHub ruleset on the base branch, MUST).
+- **Seeded `AGENTS.md`** (new repos only): the merging rule and the enforcement
+  table describe the git hooks and the ruleset.
+- **This repo:** its own `.githooks/` (rendered from `contract`), the `check` job in
+  its CI, gate step 7 runs both hook suites, render tests cover the hooks and
+  their execute bits, and the scaffold gates set the local config like
+  `devops-new`.
+
 - **Python stubs work in an existing package** (backlog item 17). `src/<package>/__main__.py`
   and `tests/test_smoke.py` no longer import `__version__` from the package's
   `__init__.py`. `__main__.py` reads the version from the installed distribution

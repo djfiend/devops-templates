@@ -75,6 +75,9 @@ scaffold() { # scaffold <type>: render, commit, doctor, gate; return non-zero on
         uv lock --quiet || return
     fi
     git add -A && git commit -q -m "scaffold $type" || return
+    # The local config devops-new sets (contract C10.3, C2.5): not versioned, so per clone.
+    git config core.hooksPath .githooks && git config merge.ff false &&
+        git config pull.ff only || return
     if command -v wt >/dev/null 2>&1; then
         wt doctor | tail -1 || return
     else

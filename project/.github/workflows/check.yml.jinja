@@ -90,3 +90,18 @@ jobs:
         run: |
           git status --porcelain
           test -z "$(git status --porcelain)"
+
+  # The one required status check (the ruleset on main requires `check`). It passes only
+  # when every gate job passed, whatever the matrix; `if: always()` makes it fail, not
+  # skip, when a gate job fails (a skipped required check would count as passing).
+  check:
+    name: check
+    if: always()
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every gate job passed
+        env:
+          RESULT: {% raw %}${{ needs.gate.result }}{% endraw %}
+        run: test "$RESULT" = success

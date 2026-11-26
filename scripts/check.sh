@@ -8,10 +8,11 @@
 #   1. python >= 3.10        the floor adopting repos' hooks run on
 #   2. ruff check            lint (rule set in ruff.toml)
 #   3. ruff format --check   formatting
-#   4. shellcheck            scripts/*.sh
+#   4. shellcheck            scripts/*.sh, contract/.githooks/pre-merge-commit
 #   5. actionlint            .github/workflows/
 #   6. compile               every .py compiles under the running Python (no byte-code written)
-#   7. guard-hook tests      contract/.claude/hooks/tests (unittest, temp repos only)
+#   7. guard-hook tests      contract/.claude/hooks/tests and contract/.githooks/tests
+#                            (unittest, temp repos only)
 #   8. render tests          tests/: Copier renders `contract` and every `project` type into
 #                            throwaway repos (file sets, nothing unrendered, valid YAML/TOML/
 #                            JSON), layered project + contract, rendered hook tests, `wt doctor`
@@ -128,7 +129,8 @@ action_pins() {
 }
 
 guard_hook_tests() {
-    PYTHONDONTWRITEBYTECODE=1 "$PYTHON" -m unittest discover -s contract/.claude/hooks/tests
+    PYTHONDONTWRITEBYTECODE=1 "$PYTHON" -m unittest discover -s contract/.claude/hooks/tests &&
+        PYTHONDONTWRITEBYTECODE=1 "$PYTHON" -m unittest discover -s contract/.githooks/tests
 }
 
 render_tests() {
@@ -170,7 +172,7 @@ printf '%scheck.sh%s — %s @ %s%s\n' "$BOLD" "$RESET" "$(basename "$REPO_ROOT")
 step "python >= 3.10"     python_floor
 step "ruff check"         ruff check --no-cache .
 step "ruff format"        ruff format --no-cache --check .
-step "shellcheck"         shellcheck scripts/*.sh
+step "shellcheck"         shellcheck scripts/*.sh contract/.githooks/pre-merge-commit
 step "actionlint"         actionlint
 step "compile"            compile_all
 step "guard-hook tests"   guard_hook_tests
