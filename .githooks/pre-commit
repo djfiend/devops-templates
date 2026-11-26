@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+"""Git hook: refuse commits in a repository's MAIN checkout, for every tool.
+
+Managed by the devops-templates `contract` Copier template (multi-agent ready contract
+C10) — change it there, not in an adopting repo; `copier update` brings the change here.
+
+Installed as `pre-commit`, and run by `pre-merge-commit` too, once the repo sets
+`git config core.hooksPath .githooks` (devops-new and devops-update do; `wt doctor` checks
+it). The relative path resolves in each checkout, so every worktree runs its own copy.
+
+Git runs this for any tool that commits: Claude Code, Codex, Gemini CLI, Cline, a Cowork
+VM, a person. The main checkout is an integration point, not a workspace: every change is
+made in its own worktree on its own topic branch (`wt new <type>/<description>`) and
+reaches `main` through a pull request. So a commit or merge commit is refused when it is
+made in the main checkout, and allowed:
+
+  - in any linked worktree;
+  - in a repository with no commits yet (the scaffold's first commit, devops-new);
+  - with the owner override REPO_ALLOW_MAIN_EDIT=1 (LIBRARY_ALLOW_MAIN_EDIT=1 is honoured
+    as a legacy alias), the same variable as the Claude Code guard hook.
+
+Limits: `git commit --no-verify`, or unsetting core.hooksPath, skips it. It makes the
+mistake loud and early; the server-side ruleset on `main` is the enforcement. Fails open
+on git errors, so a bug here can never block work in a worktree. Stdlib only.
+"""
+
+from __future__ import annotations
+
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+OVERRIDE_VARS = ("REPO_ALLOW_MAIN_EDIT", "LIBRARY_ALLOW_MAIN_EDIT")
+
+
+def git(*args: str) -> str | None:
+    try:
+        r = subprocess.run(["git", *args], capture_output=True, text=True)
+    except OSError:
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def main() -> int:
+    if any(os.environ.get(v) == "1" for v in OVERRIDE_VARS):
+        return 0
+    out = git("rev-parse", "--path-format=absolute", "--absolute-git-dir", "--git-common-dir")
+    if not out or len(out.splitlines()) != 2:
+        return 0
+    git_dir, common = (Path(p).resolve() for p in out.splitlines())
+    if git_dir != common:
+        return 0  # a linked worktree
+    if git("rev-parse", "-q", "--verify", "HEAD") is None:
+        return 0  # no commits yet: the scaffold's first commit
+    merge = "--merge" in sys.argv[1:]  # passed by the pre-merge-commit wrapper
+    hook, action = ("pre-merge-commit", "a merge commit") if merge else ("pre-commit", "a commit")
+    sys.stderr.write(
+        f"{hook}: refusing {action} in the main checkout "
+        f"({git('rev-parse', '--show-toplevel') or '?'}).\n"
+        "The main checkout is an integration point, not a workspace "
+        "(AGENTS.md § Multi-agent operation).\n"
+        "Make the change in a worktree on a topic branch and open a pull request:\n"
+        "    wt new <type>/<description>\n"
+        "Owner-only override: REPO_ALLOW_MAIN_EDIT=1.\n"
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

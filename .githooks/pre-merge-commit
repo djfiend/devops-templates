@@ -1,0 +1,4 @@
+#!/bin/sh
+# Git hook: refuse merge commits in the main checkout. Same rule as pre-commit (see there).
+# Managed by the devops-templates `contract` Copier template.
+exec python3 "$(dirname "$0")/pre-commit" --merge

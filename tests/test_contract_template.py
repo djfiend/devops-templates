@@ -12,6 +12,7 @@ and Copier sees real PEP 440 tags (the `copier update` round trip needs two of t
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -25,6 +26,9 @@ from helpers import new_repo as _new_repo
 MANAGED = [
     ".claude/hooks/main-checkout-guard.py",
     ".claude/hooks/tests/test_main_checkout_guard.py",
+    ".githooks/pre-commit",
+    ".githooks/pre-merge-commit",
+    ".githooks/tests/test_main_checkout_commit_guard.py",
     ".claude/settings.json",
     ".gemini/settings.json",
     ".wtconfig",
@@ -170,16 +174,31 @@ class ContractTemplate(unittest.TestCase):
     def test_rendered_hook_tests_pass(self):
         repo = self.new_repo("hooktests")
         self.render(repo)
-        run(
-            sys.executable,
-            "-m",
-            "unittest",
-            "discover",
-            "-s",
-            ".claude/hooks/tests",
-            cwd=repo,
-            env={"PYTHONDONTWRITEBYTECODE": "1"},
-        )
+        for tests in (".claude/hooks/tests", ".githooks/tests"):
+            with self.subTest(tests=tests):
+                run(
+                    sys.executable,
+                    "-m",
+                    "unittest",
+                    "discover",
+                    "-s",
+                    tests,
+                    cwd=repo,
+                    env={"PYTHONDONTWRITEBYTECODE": "1"},
+                )
+
+    def test_rendered_git_hooks_are_executable_and_refuse_main_commits(self):
+        repo = self.new_repo("githooks")
+        self.render(repo)
+        for name in ("pre-commit", "pre-merge-commit"):
+            self.assertTrue(os.access(repo / ".githooks" / name, os.X_OK), name)
+        self.commit_all(repo, "adopt")  # hooks not active yet: no core.hooksPath
+        git("config", "core.hooksPath", ".githooks", cwd=repo)
+        (repo / "x.txt").write_text("x\n")
+        git("add", "x.txt", cwd=repo)
+        r = git("commit", "-q", "-m", "x", cwd=repo, check=False)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("refusing a commit in the main checkout", r.stderr)
 
     @unittest.skipUnless(shutil.which("wt"), "wt not installed (devops-workspace)")
     def test_wt_doctor_passes_on_render(self):
@@ -189,6 +208,13 @@ class ContractTemplate(unittest.TestCase):
         (repo / "scripts/check.sh").write_text("#!/bin/sh\nexit 0\n")
         (repo / "scripts/check.sh").chmod(0o755)
         self.commit_all(repo, "adopt")
+        # The local config devops-new / devops-update set (contract C10.3, C2.5).
+        for key, value in (
+            ("core.hooksPath", ".githooks"),
+            ("merge.ff", "false"),
+            ("pull.ff", "only"),
+        ):
+            git("config", key, value, cwd=repo)
         out = run("wt", "doctor", cwd=repo).stdout
         self.assertIn("0 failed", out)
 

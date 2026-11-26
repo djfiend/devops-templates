@@ -34,6 +34,8 @@ How the templates are maintained, released and consumed (with workflow charts):
 | `.claude/settings.json` | managed | Claude Code allow/ask/deny baseline + the guard hook; the gate and `extra_allow` become allow rules |
 | `.claude/hooks/main-checkout-guard.py` | managed | Judges each edit by the *target* file's checkout: blocks the main checkout (except `wt.mainEditAllow`) and edits from one linked worktree into another. A main-checkout session may edit linked worktrees (deliberate); shell writes are not seen |
 | `.claude/hooks/tests/` | managed | The hook's unit tests (run them in your gate) |
+| `.githooks/pre-commit`, `.githooks/pre-merge-commit` | managed | Git hooks for every tool: refuse a commit or merge commit in the main checkout; allow linked worktrees, a repo with no commits yet, and `REPO_ALLOW_MAIN_EDIT=1`. Active only once the clone sets `core.hooksPath` (below) |
+| `.githooks/tests/` | managed | The git hooks' unit tests (run them in your gate) |
 | `.gemini/settings.json` | managed | Gemini CLI reads `AGENTS.md` |
 | `AGENTS.md` | seeded | Written only if absent: every section `wt doctor` requires, with TODOs |
 | `CLAUDE.md` | seeded | Written only if absent: `@AGENTS.md` |
@@ -60,11 +62,13 @@ checks they still meet the contract.
 
 ### Apply it to a repo
 
-Run each command on its own, from the repo's main checkout, with a clean tree.
-Pick the latest release tag for `vX.Y.Z`.
+Run each command on its own, from a worktree on a topic branch
+(`wt new chore/adopt-contract`), with a clean tree. Pick the latest release tag
+for `vX.Y.Z`. Pass the repository's name: the default is the folder's name,
+which in a worktree is the branch slug.
 
 ```bash
-copier copy --vcs-ref vX.Y.Z -d template=contract https://github.com/djfiend/devops-templates.git .
+copier copy --vcs-ref vX.Y.Z -d template=contract -d repo_name=<repo> https://github.com/djfiend/devops-templates.git .
 ```
 
 Copier asks the questions above. Then review what changed:
@@ -83,14 +87,19 @@ For a repo that already had contract files, answer yes for **managed** files —
 that is the point — or, non-interactively, add `--overwrite` to the command
 above; git still has the old versions, so review every change in `git diff`
 and carry anything repo-specific into the answers. Fill in any `TODO` in a
-newly seeded `AGENTS.md`. Then check:
+newly seeded `AGENTS.md`. Commit the rendered files together with `.copier-answers.contract.yml`. Then
+turn on the git hooks and the no-fast-forward merge settings. Git config is not
+versioned, so every clone needs this once (`devops-new` and `devops-update` do it
+for you):
 
 ```bash
-wt doctor
+git config core.hooksPath .githooks && git config merge.ff false && git config pull.ff only
 ```
 
-Expect `0 failed`. Commit the rendered files together with
-`.copier-answers.contract.yml`.
+Open a pull request and merge it with a merge commit. `wt doctor` checks the
+main checkout, so run it there after the merge and expect `0 failed`. From now
+on the main checkout refuses commits: changes go through a worktree and a pull
+request (contract C2.3).
 
 ### Update to a newer release
 
@@ -102,7 +111,8 @@ copier update --answers-file .copier-answers.contract.yml
 
 Copier re-renders the old version from the answers file, computes what the
 template changed between the two versions, and applies only that to the repo.
-Review `git diff`, run the gate, commit.
+Review `git diff`, run the gate, commit. Updating from before `v1.2.3` also
+needs the `git config` line above in each clone (`devops-update` sets it).
 
 ### Change an answer
 

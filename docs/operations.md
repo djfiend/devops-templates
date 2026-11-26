@@ -166,7 +166,7 @@ flowchart LR
         s10["10 action pins<br/>scaffold CI template SHAs =<br/>.github/workflows SHAs"]
     end
     subgraph tests["Behaviour"]
-        s7["7 guard-hook tests<br/>contract/.claude/hooks/tests"]
+        s7["7 hook tests<br/>contract/.claude/hooks/tests<br/>contract/.githooks/tests"]
         s8["8 render tests<br/>every template + type, layered,<br/>parse YAML/TOML/JSON, wt doctor,<br/>copier update round trips"]
         s9["9 scaffold gates<br/>each type rendered like devops-new,<br/>then ITS OWN scripts/check.sh"]
         s7 --> s8 --> s9

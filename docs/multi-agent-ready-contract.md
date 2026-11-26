@@ -1,4 +1,4 @@
-# Multi-agent ready contract (v1.1)
+# Multi-agent ready contract (v1.2)
 
 The standard the `contract` template in this repository implements. Moved here
 from the library (`plans/multi-agent-workflows/`, library `c4c4f07`) on 2026-10-15
@@ -14,7 +14,7 @@ library already does (`GOVERNANCE.md` § Multi-Agent Operation) into
 repo-neutral terms. The library is the reference implementation and must pass
 its own contract.
 
-**Status:** v1.1, stable. `linux-devops-workspace` passed it first (phase 2–4)
+**Status:** v1.2, stable. `linux-devops-workspace` passed it first (phase 2–4)
 and the library is the second repo (Rule 9). The adoption decisions it relies
 on (D1–D7) are recorded in the library's
 [`linux-devops-workspace-adoption-plan.md`](https://github.com/djfiend/library/blob/main/plans/multi-agent-workflows/linux-devops-workspace-adoption-plan.md#decisions).
@@ -27,6 +27,15 @@ v1.1 (2026-10-27, devops-templates `v1.2.0`; owner decisions 2026-10-24 and
 versioned inputs and nothing else; secrets stay forbidden. New C5.4 (SHOULD):
 an offline mode once those inputs are cached. A repo that met v1.0 meets v1.1's
 MUSTs unchanged.
+v1.2 (devops-templates `v1.2.3`; phase 2 WS C, owner decisions P2-D1 and
+C-D1..C-D6, 2026-11-15 and 2026-11-26): enforcement no longer depends on the
+tool. C2.3 integrates through a pull request with a merge commit. New C2.5
+(SHOULD): local `merge.ff=false` and `pull.ff=only`. New C10.3 (MUST): the
+`contract` layer's git hooks, active through `core.hooksPath`, refuse commits in
+the main checkout for every tool. New C10.4 (MUST for a repo hosted on GitHub):
+a ruleset protects the base branch and requires the `check` status. A repo that
+met v1.1 must adopt the v1.2.3 contract layer, set the local config, add the
+`check` CI job and get its ruleset.
 
 Keywords: **MUST** = required to pass; **SHOULD** = expected unless the
 repo's `AGENTS.md` says why not.
@@ -53,12 +62,14 @@ The `contract` template ships `.gemini/settings.json` with `["AGENTS.md"]` (adop
 |---|---|---|
 | C2.1 | The repo declares exactly one **base (integration) branch** in `.wtconfig` (`wt.base`). Without it, the base is `origin/HEAD`, then `main` | MUST |
 | C2.2 | Agent work happens only on short-lived topic branches named `<type>/<description>`, never directly on the base | MUST |
-| C2.3 | Topic branches are merged into the base with `git merge --no-ff`, by the owner or an integrator he started. Agents never merge their own branch | MUST |
+| C2.3 | Topic branches reach the base through a pull request merged with a merge commit (GitHub "Create a merge commit", `gh pr merge --merge`; the equivalent of `git merge --no-ff`), by the owner or an integrator he started. Agents never merge their own branch. Nothing is committed on the base directly (C10.3, C10.4) | MUST |
 | C2.4 | A topic branch is merged or explicitly parked within ~7 days (`wt status` flags `STALE`). It stays current with `git merge <base>`, never rebase or force | SHOULD |
+| C2.5 | Every clone sets `merge.ff=false` and `pull.ff=only` in its local git config, so a plain `git merge` never fast-forwards and `git pull` never creates a merge (backlog item 19). Git config is not versioned: `devops-new` and `devops-update` set it, `wt doctor` warns when it is missing | SHOULD |
 
 `--no-ff` is load-bearing: `wt status` detects a merge by the branch tip
-entering the base through a merge commit (backlog item 9). A fast-forward is
-invisible to it.
+entering the base through a merge commit (backlog item 9). A fast-forward, a
+squash merge or a rebase merge is invisible to it, which is why C10.4 allows
+only merge commits.
 
 Long-lived parallel branches (e.g. `dev` beside `main`) are not part of the
 model: the base branch is the trunk (decided 2026-10-10, adoption plan D1).
@@ -172,6 +183,8 @@ SKIP with the reason.
 |---|---|---|
 | C10.1 | Where a tool supports it, enforce the rules on the worker: Claude Code `.claude/settings.json` deny/ask rules and a main-checkout guard hook. Both ship in the `contract` template. The hook decides from the *target* file's checkout (not the session's): main-checkout files are blocked except `wt.mainEditAllow` paths, and a session in one linked worktree cannot edit another linked worktree of the same repository. A session in the main checkout is deliberately allowed to edit linked worktrees; it gains no ownership of them (C3.2 still applies). The hook covers the tool's file-edit calls, not shell writes | SHOULD |
 | C10.2 | Tools without enforcement are bound by `AGENTS.md`, the gate and review. The repo's `AGENTS.md` lists which tools are enforced and which aren't. CI running the gate on every push and PR (C5.2) applies to every tool's contributions, since harness rules and hooks bind only the tool that loads them. It verifies only what the gate checks: declared scope, single-writer ownership, attribution, the handoff block and owner approvals are left to integrator or owner review, so a passing CI run is not a complete compliance verdict | MUST |
+| C10.3 | Every tool is stopped from committing in the main checkout by git itself: the `contract` template's `.githooks/pre-commit` and `.githooks/pre-merge-commit`, active through `git config core.hooksPath .githooks` (set by `devops-new`, `devops-update` and `devops-new --clone`; not versioned, so per clone). They refuse a commit or merge commit in the main checkout and allow linked worktrees, a repository with no commits yet, and the owner override `REPO_ALLOW_MAIN_EDIT=1`. `--no-verify` skips them: they make the mistake loud early, C10.4 enforces | MUST |
+| C10.4 | A repository hosted on GitHub protects its base branch with a ruleset: changes only through pull requests, merge commits only, the required status check `check` (an aggregate CI job that passes only when every gate job passed), no force pushes, no deletion, and no bypass actors (decision P2-D1: agents push with the owner's credentials, so an owner bypass would exempt them too). Not machine-checked by `wt doctor`, which works offline; the owner verifies it with `gh api repos/<owner>/<repo>/rulesets` | MUST |
 
 ---
 
@@ -182,8 +195,8 @@ check. Exit 1 on any MUST failure; warnings for SHOULD.
 
 As implemented (2026-10-13): C2.3 is an `info` line (non-merge commits on the
 base in the last 30 days; there is no `wt.since` key), because a fast-forward
-leaves no trace to warn on. C6 (`wt status` flags) and C10.1 (`.claude/settings.json`
-missing) are warnings, since in-flight work is normal mid-task. C1.3 checks only
+leaves no trace to warn on. C6 (`wt status` flags), C2.5 (local merge config) and
+C10.1 (`.claude/settings.json` missing) are warnings, since in-flight work is normal mid-task. C1.3 checks only
 the tool files that exist. A gate declared ahead of its script warns (decision
 2026-10-11).
 
@@ -197,6 +210,8 @@ the tool files that exist. A gate declared ahead of its script warns (decision
 | Gate declared | C5.1 | `git config -f .wtconfig wt.gate` |
 | Recent merges into base are `--no-ff` | C2.3 | warn on base commits since `wt.since` that came from a topic branch without a merge commit (heuristic) |
 | Foreign refs | C9.3 | `for-each-ref`, informational |
+| Commit guard active | C10.3 | `git config core.hooksPath` is `.githooks` and `.githooks/pre-commit` is executable (fail) |
+| No fast-forward merges locally | C2.5 | `git config merge.ff` is `false`, `pull.ff` is `only` (warn) |
 | Nothing left over | C6 | `wt status --strict` |
 
 **Why `.wtconfig`:** a tracked file in git-config syntax, read with
