@@ -333,7 +333,15 @@ class ProjectTemplate(unittest.TestCase):
     def test_wt_doctor_passes_on_every_layered_type(self):
         for t in TYPES:
             with self.subTest(project_type=t):
-                out = run("wt", "doctor", cwd=self.layered(t)).stdout
+                repo = self.layered(t)
+                # The local config devops-new sets (C10.3, C2.5); wt doctor checks it.
+                for key, value in (
+                    ("core.hooksPath", ".githooks"),
+                    ("merge.ff", "false"),
+                    ("pull.ff", "only"),
+                ):
+                    git("config", key, value, cwd=repo)
+                out = run("wt", "doctor", cwd=repo).stdout
                 self.assertIn("0 failed", out)
 
     # --- the seeded gate's modes -----------------------------------------------------------
