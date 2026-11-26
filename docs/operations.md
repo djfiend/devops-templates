@@ -40,7 +40,7 @@ flowchart TD
 | `docs/multi-agent-ready-contract.md` | The standard (C1–C10) the `contract` layer implements and `wt doctor` checks |
 | `tests/` | Render tests (Copier into throwaway repos) |
 | `scripts/check.sh`, `scripts/scaffold-gates.sh` | The gate, and the per-type scaffold-and-gate runner |
-| Root `.wtconfig`, `.claude/`, `.gemini/` | This repo's **own application** of `contract/` (kept at the latest release, v1.2.2 as of 2026-11-15) — updated with `copier update`, never edited by hand |
+| Root `.wtconfig`, `.claude/`, `.gemini/` | This repo's **own application** of `contract/` (kept at the latest release, v1.3.0 as of 2026-11-26) — updated with `copier update`, never edited by hand |
 
 ---
 
